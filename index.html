@@ -248,7 +248,7 @@ input[type=range]::-webkit-slider-thumb{
 
     <div class="ctrl-row">
       <label title="Predict date">🔮</label>
-      <input type="date" id="predDate" onchange="autoPredict()" style="flex:1">
+      <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:1">
       <span class="pred-display" id="predResult">—</span>
     </div>
   </div>
@@ -357,6 +357,19 @@ function loadData(){
   }catch(e){return[]}
 }
 function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d))}
+
+var SETTINGS_KEY='weightTrackerSettings';
+function saveSettings(){
+  try{
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify({
+      phiOverride:phiOverride,
+      predDate:document.getElementById('predDate').value||null
+    }));
+  }catch(e){}
+}
+function loadSettings(){
+  try{return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}}catch(e){return{}}
+}
 
 /* ═══════════════════════════════════════════════════════
    State
@@ -694,6 +707,7 @@ function onPhiChange(){
   ];
   updatePhiUI();
   updateChart(true);
+  saveSettings();
 }
 
 function resetPhi(){
@@ -704,6 +718,12 @@ function resetPhi(){
   }
   updatePhiUI();
   updateChart(true);
+  saveSettings();
+}
+
+function onPredDateChange(){
+  autoPredict();
+  saveSettings();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -956,10 +976,25 @@ function init(){
   now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
   document.getElementById('weightDate').value=now.toISOString().slice(0,16);
 
-  // Default prediction date: 30 days out
-  var predD=new Date();
-  predD.setDate(predD.getDate()+30);
-  document.getElementById('predDate').value=predD.toISOString().slice(0,10);
+  var settings=loadSettings();
+
+  // Prediction date: restore saved target, else default 30 days out
+  if(settings.predDate&&/^\d{4}-\d{2}-\d{2}$/.test(settings.predDate)){
+    document.getElementById('predDate').value=settings.predDate;
+  }else{
+    var predD=new Date();
+    predD.setDate(predD.getDate()+30);
+    document.getElementById('predDate').value=predD.toISOString().slice(0,10);
+  }
+
+  // Restore phi overrides
+  if(Array.isArray(settings.phiOverride)&&settings.phiOverride.length===2&&
+     isFinite(settings.phiOverride[0])&&isFinite(settings.phiOverride[1])){
+    phiOverride=[+settings.phiOverride[0],+settings.phiOverride[1]];
+    document.getElementById('phi1Slider').value=Math.round(phiOverride[0]*1000);
+    document.getElementById('phi2Slider').value=Math.round(phiOverride[1]*1000);
+    updatePhiUI();
+  }
 
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
   createManifest();
