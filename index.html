@@ -481,7 +481,7 @@ function initChart(){
         {label:'Weight',data:[],borderColor:'#4fc3f7',
          pointBackgroundColor:function(c){return c.raw&&c.raw.label===selectedPoint?'#ff9800':'#4fc3f7'},
          pointRadius:function(c){return c.raw&&c.raw.label===selectedPoint?6:1.5},
-         pointBorderWidth:0,pointHoverRadius:5,pointHitRadius:12,showLine:true,borderWidth:1.5,tension:0.1,order:1},
+         pointBorderWidth:0,pointHoverRadius:5,pointHitRadius:12,showLine:false,order:1},
         {label:'AR(2) Fit',data:[],borderColor:'#ff9800',backgroundColor:'transparent',
          borderDash:[5,3],borderWidth:2,pointRadius:0,showLine:true,tension:0,order:2},
         {label:'Prediction',data:[],borderColor:'#66bb6a',backgroundColor:'#66bb6a',
@@ -608,12 +608,25 @@ function updatePhiUI(){
   p1.className=p2.className='phi-val'+(ov?' overridden':'');
 }
 
+/* Pan/zoom limits: never beyond the data (plus the prediction point) */
+function updateZoomLimits(){
+  var lim=chart.options.plugins.zoom.limits.x;
+  if(entries.length===0){lim.min=undefined;lim.max=undefined;return}
+  var first=parseDT(entries[0].date).getTime();
+  var last=parseDT(entries[entries.length-1].date).getTime();
+  var pred=chart.data.datasets[2].data;
+  var maxX=pred.length?Math.max(last,pred[0].x):last;
+  lim.min=first-86400000;
+  lim.max=maxX+86400000*3;
+}
+
 function autoPredict(keepZoom){
   var dateEl=document.getElementById('predDate');
   var target=dateEl.value;
   if(!target||entries.length<2){
     document.getElementById('predResult').innerHTML='<span style="color:var(--text2)">—</span>';
     chart.data.datasets[2].data=[];
+    updateZoomLimits();
     chart.update();
     return;
   }
@@ -622,6 +635,7 @@ function autoPredict(keepZoom){
     document.getElementById('predResult').innerHTML=
       '<span style="color:var(--text2)">after '+entries[entries.length-1].date+'</span>';
     chart.data.datasets[2].data=[];
+    updateZoomLimits();
     chart.update();
     return;
   }
@@ -636,6 +650,7 @@ function autoPredict(keepZoom){
     x:new Date(target+'T12:00:00').getTime(),y:result.predicted,label:'Prediction: '+target
   };
   chart.data.datasets[2].data=[predPoint];
+  updateZoomLimits();
 
   // If pred point off screen, zoom to include it (not while tweaking phi)
   var curMax=chart.scales.x.max;
