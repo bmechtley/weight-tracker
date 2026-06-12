@@ -262,6 +262,23 @@ input[type=range]::-webkit-slider-thumb{
   </div>
 </div>
 
+<div class="modal-overlay" id="pointModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="pointTitle">Edit entry</h2>
+      <button class="modal-close" onclick="closePointModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ctrl-row">
+        <label title="Weight">⚖</label>
+        <input type="number" id="pointWeight" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
+      </div>
+      <button class="btn modal-btn" onclick="savePoint()">💾 &nbsp;Save</button>
+      <button class="btn modal-btn danger" onclick="deletePoint()">🗑 &nbsp;Delete entry</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* hammer.js v2.0.8 */
 /*! Hammer.JS - v2.0.7 - 2016-04-22
@@ -410,6 +427,12 @@ function initChart(){
     options:{
       responsive:true,maintainAspectRatio:false,animation:{duration:200},
       interaction:{mode:'nearest',intersect:false},
+      onClick:function(evt,els,c){
+        var hits=c.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
+        if(!hits.length||hits[0].datasetIndex!==0)return;
+        var dp=c.data.datasets[0].data[hits[0].index];
+        openPointModal(dp.label,dp.y);
+      },
       plugins:{
         legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},boxWidth:8}},
         tooltip:{callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric',year:'numeric'});return ds+': '+dp.y.toFixed(1)}}},
@@ -643,6 +666,43 @@ function importData(input){
   reader.readAsText(file);
 }
 
+/* ═══════════════════════════════════════════════════════
+   Point edit/delete modal
+   ═══════════════════════════════════════════════════════ */
+var pointEditDate=null;
+function openPointModal(date,weight){
+  pointEditDate=date;
+  document.getElementById('pointTitle').textContent=
+    new Date(date+'T12:00:00').toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('pointWeight').value=weight;
+  document.getElementById('pointModal').classList.add('show');
+}
+function closePointModal(){
+  document.getElementById('pointModal').classList.remove('show');
+  pointEditDate=null;
+}
+function savePoint(){
+  if(pointEditDate===null)return;
+  var w=parseFloat(document.getElementById('pointWeight').value);
+  if(isNaN(w)||w<=0||w>500){toast('Weight 1-500');return}
+  for(var i=0;i<entries.length;i++){
+    if(entries[i].date===pointEditDate){entries[i].weight=Math.round(w*10)/10;break}
+  }
+  saveData(entries);
+  updateChart();
+  closePointModal();
+  toast('Updated!');
+}
+function deletePoint(){
+  if(pointEditDate===null)return;
+  var d=pointEditDate;
+  entries=entries.filter(function(e){return e.date!==d});
+  saveData(entries);
+  updateChart();
+  closePointModal();
+  toast('Deleted '+d);
+}
+
 function clearData(){
   if(entries.length===0){toast('Nothing to clear');return}
   if(!confirm('Delete all '+entries.length+' entries? This cannot be undone.'))return;
@@ -804,8 +864,14 @@ function init(){
   document.getElementById('settingsModal').addEventListener('click',function(e){
     if(e.target===this)closeSettings();
   });
+  document.getElementById('pointModal').addEventListener('click',function(e){
+    if(e.target===this)closePointModal();
+  });
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape')closeSettings();
+    if(e.key==='Escape'){closeSettings();closePointModal()}
+  });
+  document.getElementById('pointWeight').addEventListener('keydown',function(e){
+    if(e.key==='Enter')savePoint();
   });
 }
 
