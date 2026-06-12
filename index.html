@@ -352,7 +352,7 @@ function initChart(){
       interaction:{mode:'nearest',intersect:false},
       plugins:{
         legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},boxWidth:8}},
-        tooltip:{callbacks:{label:function(ctx){var dp=ctx.raw;return(dp.label||'')+': '+dp.y.toFixed(1)}}},
+        tooltip:{callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric',year:'numeric'});return ds+': '+dp.y.toFixed(1)}}},
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
@@ -366,9 +366,12 @@ function initChart(){
         }
       },
       scales:{
-        x:{type:'time',time:{unit:'day',displayFormats:{day:'MMM d'},tooltipFormat:'EEE, MMM d, yyyy'},
+        x:{type:'linear',
            title:{display:true,text:'Date',color:'#a0a0b8'},
-           grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0b8',font:{size:9},maxTicksLimit:8}},
+           grid:{color:'rgba(255,255,255,0.04)'},
+           ticks:{color:'#a0a0b8',font:{size:9},maxTicksLimit:8,
+             callback:function(v){var d=new Date(v);return d.toLocaleDateString(void 0,{month:'short',day:'numeric'})}}
+          },
         y:{title:{display:true,text:'Weight',color:'#a0a0b8'},
            grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0b8',font:{size:9},callback:function(v){return v.toFixed(1)}}}
       }
@@ -636,8 +639,7 @@ setTimeout(function(){
       // Show diagnostic: not HTTPS
       var b=document.getElementById("installBtn");
       b.textContent="🔒 Need HTTPS";b.className="install-btn blocked";
-      b.style.display="";b.onclick=function(){alert("PWAs require HTTPS. Use a tunnel:
-npx localtunnel --port "+location.port)};
+      b.style.display="";b.onclick=function(){alert("PWAs require HTTPS. Use a tunnel:\nnpx localtunnel --port "+location.port)};
     }
   } else {
     // SW not ready yet, retry
