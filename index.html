@@ -123,6 +123,48 @@ input[type=range]::-webkit-slider-thumb{
 .pred-display .val{font-size:1.1rem;font-weight:800}
 .pred-display .unit{font-size:0.65rem;color:var(--text2)}
 
+/* ── Settings ── */
+.gear-btn{
+  background:transparent;border:none;color:var(--text2);font-size:1.05rem;
+  cursor:pointer;padding:4px 6px;font-family:inherit;line-height:1;
+}
+.gear-btn:active{opacity:0.7}
+.gear-float{
+  display:none;position:fixed;top:8px;right:8px;z-index:50;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(26,26,46,0.75);border:1px solid rgba(255,255,255,0.12);
+  color:var(--text2);font-size:0.95rem;cursor:pointer;font-family:inherit;
+  align-items:center;justify-content:center;line-height:1;
+}
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;
+  display:none;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--surface);border:1px solid rgba(255,255,255,0.1);
+  border-radius:var(--radius);width:min(320px,92vw);max-height:85vh;
+  max-height:85dvh;overflow-y:auto;
+}
+.modal-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.modal-head h2{font-size:0.9rem;font-weight:700}
+.modal-close{
+  background:transparent;border:none;color:var(--text2);
+  font-size:1rem;cursor:pointer;padding:2px 6px;font-family:inherit;
+}
+.modal-body{padding:14px;display:flex;flex-direction:column;gap:10px}
+.modal-btn{
+  width:100%;background:var(--surface2);color:var(--text);
+  border:1px solid rgba(255,255,255,0.1);text-align:left;
+}
+.modal-btn.danger{color:var(--danger);border-color:rgba(239,83,80,0.4)}
+.modal-note{font-size:0.65rem;color:var(--text2);line-height:1.6;-webkit-user-select:text;user-select:text}
+.modal-note a{color:var(--accent)}
+.modal-note code{background:var(--surface2);padding:1px 4px;border-radius:4px}
+
 /* ── Toast ── */
 .toast{
   position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
@@ -132,28 +174,34 @@ input[type=range]::-webkit-slider-thumb{
 }
 .toast.show{opacity:1}
 
-/* ── Landscape ── */
+/* ── Landscape: narrow sidebar, controls stacked vertically ── */
 @media (orientation:landscape) and (max-height:500px){
   body{flex-direction:row}
   header{display:none}
+  .gear-float{display:flex}
   .chart-area{flex:1;margin:2px}
   .controls{
-    width:220px;border-left:1px solid rgba(255,255,255,0.06);
-    border-top:none;padding:6px 8px;gap:4px;overflow-y:hidden;justify-content:center;
+    width:130px;border-left:1px solid rgba(255,255,255,0.06);
+    border-top:none;padding:6px 8px;gap:8px;overflow-y:auto;justify-content:center;
   }
-  .ctrl-row{gap:4px}
-  .ctrl-row>label{width:14px;font-size:0.6rem}
+  .ctrl-row{flex-wrap:wrap;gap:3px}
+  .ctrl-row>label{display:none}
+  .ctrl-row>input[type=date],.ctrl-row>input[type=number],
+  .ctrl-row>input[type=range],.ctrl-row>.btn-add,
+  .ctrl-row>.pred-display{flex:1 1 100%!important}
   input[type=date],input[type=number]{padding:5px 4px;font-size:0.72rem}
   .btn{padding:6px 10px;font-size:0.7rem}
   .btn-reset{padding:3px 6px;font-size:0.6rem}
-  .phi-val{font-size:0.72rem;min-width:36px}
-  .pred-display{font-size:0.7rem}
+  .phi-val{font-size:0.72rem;min-width:0;flex:1}
+  .phi-fitted{min-width:0;flex:1}
+  .pred-display{font-size:0.7rem;text-align:center}
 }
 
 /* Desktop wider layout */
 @media (min-width:600px) and (min-height:500px){
   body{flex-direction:row}
   header{display:none}
+  .gear-float{display:flex}
   .chart-area{flex:1;margin:4px}
   .controls{
     width:280px;border-left:1px solid rgba(255,255,255,0.06);
@@ -164,7 +212,8 @@ input[type=range]::-webkit-slider-thumb{
 </head>
 <body>
 
-<header><h1>⚖ Weight Tracker</h1><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button></header>
+<header><h1>⚖ Weight Tracker</h1><span style="display:flex;align-items:center;gap:4px"><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button><button class="gear-btn" onclick="openSettings()" title="Settings">⚙</button></span></header>
+<button class="gear-float" onclick="openSettings()" title="Settings">⚙</button>
 
 <section class="chart-area">
   <canvas id="weightChart"></canvas>
@@ -194,6 +243,24 @@ input[type=range]::-webkit-slider-thumb{
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>⚙ Settings</h2>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <button class="btn modal-btn" onclick="exportData()">⬇ &nbsp;Export data (.txt)</button>
+      <button class="btn modal-btn" onclick="document.getElementById('importFile').click()">⬆ &nbsp;Import data</button>
+      <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
+      <button class="btn modal-btn danger" onclick="clearData()">🗑 &nbsp;Clear all data</button>
+      <p class="modal-note">Export/import uses the <a href="https://github.com/QuantumPhysique/trale" target="_blank" rel="noopener">trale</a> backup format — one entry per line, e.g.<br>
+      <code>2025-12-24T16:00 67.9</code><br>
+      Lines starting with <code>#</code> are ignored.</p>
+    </div>
+  </div>
+</div>
 
 <script>
 /* hammer.js v2.0.8 */
@@ -263,69 +330,62 @@ function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d))}
 var entries=loadData();
 var phiOverride=null;
 var chart=null;
-var fittedPhi=null;
-var fittedC=null;
+var model=null;
 
 /* ═══════════════════════════════════════════════════════
-   AR(1) Fitting
+   Model: linear trend + AR(1) on deviations from trend.
+   Trend extrapolates (2 points → exact line through them);
+   phi controls how fast deviations decay back to the trend.
    ═══════════════════════════════════════════════════════ */
-function fitAR1(data){
-  if(data.length<2)return{phi:0,c:0,longRunMean:0};
-  var n=data.length,sumX=0,sumY=0,sumXY=0,sumX2=0;
-  for(var i=1;i<n;i++){
-    var x=data[i-1].weight,y=data[i].weight;
-    sumX+=x;sumY+=y;sumXY+=x*y;sumX2+=x*x;
+function fitModel(data){
+  if(data.length<2)return null;
+  var t0=new Date(data[0].date+'T12:00:00').getTime();
+  var n=data.length,pts=[];
+  for(var i=0;i<n;i++){
+    pts.push({t:(new Date(data[i].date+'T12:00:00').getTime()-t0)/86400000,w:data[i].weight});
   }
-  var m=n-1,denom=m*sumX2-sumX*sumX;
-  var phi=denom!==0?(m*sumXY-sumX*sumY)/denom:0;
-  var c=(sumY-phi*sumX)/m;
+  var sumT=0,sumW=0,sumTW=0,sumT2=0;
+  for(i=0;i<n;i++){sumT+=pts[i].t;sumW+=pts[i].w;sumTW+=pts[i].t*pts[i].w;sumT2+=pts[i].t*pts[i].t}
+  var denom=n*sumT2-sumT*sumT;
+  var b=denom!==0?(n*sumTW-sumT*sumW)/denom:0;
+  var a=(sumW-b*sumT)/n;
+  var resid=[];
+  for(i=0;i<n;i++){resid.push({t:pts[i].t,r:pts[i].w-(a+b*pts[i].t)})}
+  var num=0,den=0;
+  for(i=1;i<n;i++){num+=resid[i].r*resid[i-1].r;den+=resid[i-1].r*resid[i-1].r}
+  var phi=den>1e-9?num/den:0;
   phi=Math.max(0,Math.min(0.999,isNaN(phi)?0:phi));
-  var lrm=Math.abs(1-phi)>0.0001?c/(1-phi):data[n-1].weight;
-  return{phi:phi,c:c,longRunMean:lrm};
+  var avgSp=pts[n-1].t/(n-1);
+  if(avgSp<0.5)avgSp=1;
+  return{a:a,b:b,phi:phi,t0:t0,resid:resid,avgSp:avgSp};
 }
 
 function effPhi(){
-  return phiOverride!==null?phiOverride:(fittedPhi!==null?fittedPhi:0.85);
-}
-
-function effC(){
-  var phi=effPhi();
-  if(fittedPhi!==null&&fittedC!==null&&phiOverride!==null){
-    var denom=1-fittedPhi;
-    if(Math.abs(denom)<0.0001)return fittedC;
-    return(fittedC/denom)*(1-phi);
-  }
-  return fittedC!==null?fittedC:0;
+  return phiOverride!==null?phiOverride:(model!==null?model.phi:0.85);
 }
 
 /* ═══════════════════════════════════════════════════════
    Prediction (for chart fit + future point)
    ═══════════════════════════════════════════════════════ */
 function predictWeight(targetDateStr){
-  if(entries.length<2)return null;
-  var phi=effPhi(),c=effC();
+  if(model===null)return null;
+  var phi=effPhi();
   var last=entries[entries.length-1];
   var lastD=new Date(last.date+'T12:00:00');
   var targD=new Date(targetDateStr+'T12:00:00');
   var days=(targD-lastD)/86400000;
   if(days<=0)return null;
 
-  var avgSp=1;
-  if(entries.length>=2){
-    var firstD=new Date(entries[0].date+'T12:00:00');
-    var totalD=(lastD-firstD)/86400000;
-    avgSp=totalD/(entries.length-1);
-  }
-  if(avgSp<0.5)avgSp=1;
-  var h=days/avgSp;
-  var predicted;
-  if(Math.abs(1-phi)<0.0001)predicted=last.weight+c*h;
-  else{var ph=Math.pow(phi,h);predicted=ph*last.weight+c*(1-ph)/(1-phi);}
+  var tTarg=(targD.getTime()-model.t0)/86400000;
+  var trend=model.a+model.b*tTarg;
+  var lastR=model.resid[model.resid.length-1].r;
+  var h=days/model.avgSp;
+  var predicted=trend+Math.pow(phi,h)*lastR;
 
   return{
     predicted:Math.round(predicted*10)/10,
     date:targetDateStr,daysDiff:Math.round(days),
-    h:Math.round(h*10)/10,phi:phi,c:c,
+    h:Math.round(h*10)/10,phi:phi,
     lastWeight:last.weight,lastDate:last.date
   };
 }
@@ -397,12 +457,17 @@ function autoScaleY(c){
 }
 
 function computeFitCurve(sorted){
-  if(sorted.length<2)return[];
-  var phi=effPhi(),c=effC(),points=[],prev=sorted[0].weight;
+  if(model===null)return[];
+  var phi=effPhi(),points=[];
   for(var i=0;i<sorted.length;i++){
     var date=new Date(sorted[i].date+'T12:00:00').getTime();
-    var fw=i===0?sorted[i].weight:c+phi*prev;
-    prev=fw;
+    var t=model.resid[i].t;
+    var fw;
+    if(i===0)fw=sorted[0].weight;
+    else{
+      var gap=(t-model.resid[i-1].t)/model.avgSp;
+      fw=model.a+model.b*t+Math.pow(phi,gap)*model.resid[i-1].r;
+    }
     points.push({x:date,y:Math.round(fw*10)/10,label:sorted[i].date});
   }
   return points;
@@ -411,6 +476,7 @@ function computeFitCurve(sorted){
 function updateChart(){
   if(!chart)return;
   var sorted=[].concat(entries).sort(function(a,b){return a.date.localeCompare(b.date)});
+  model=fitModel(sorted);
 
   var raw=sorted.map(function(e){return{
     x:new Date(e.date+'T12:00:00').getTime(),y:e.weight,label:e.date
@@ -430,18 +496,14 @@ function updateChart(){
    UI updates
    ═══════════════════════════════════════════════════════ */
 function updateFittedStats(){
-  var fit=fitAR1(entries);
-  fittedPhi=fit.phi;fittedC=fit.c;
-
-  // Fitted label
   var fl=document.getElementById('phiFittedLabel');
-  if(entries.length>=2){
-    fl.textContent='fit '+fittedPhi.toFixed(3);
+  if(model!==null){
+    fl.textContent='fit '+model.phi.toFixed(3);
   }else{fl.textContent='';}
 
-  if(phiOverride===null&&entries.length>=2){
-    document.getElementById('phiSlider').value=Math.round(fittedPhi*1000);
-    document.getElementById('phiCurrent').textContent=fittedPhi.toFixed(3);
+  if(phiOverride===null&&model!==null){
+    document.getElementById('phiSlider').value=Math.round(model.phi*1000);
+    document.getElementById('phiCurrent').textContent=model.phi.toFixed(3);
   }
 }
 
@@ -470,9 +532,11 @@ function autoPredict(){
     chart.update();
     return;
   }
+  var targDs=new Date(target+'T12:00:00')
+    .toLocaleDateString(void 0,{month:'short',day:'numeric'});
   document.getElementById('predResult').innerHTML=
     '<span class="val">'+result.predicted.toFixed(1)+'</span>'+
-    '<span class="unit"> in '+result.daysDiff+'d</span>';
+    '<span class="unit"> on '+targDs+' ('+result.daysDiff+'d)</span>';
 
   // Update prediction point on chart
   var predPoint={
@@ -519,11 +583,74 @@ function onPhiChange(val){
 
 function resetPhi(){
   phiOverride=null;
-  if(fittedPhi!==null){
-    document.getElementById('phiSlider').value=Math.round(fittedPhi*1000);
+  if(model!==null){
+    document.getElementById('phiSlider').value=Math.round(model.phi*1000);
   }
   updatePhiUI();
   updateChart();
+}
+
+/* ═══════════════════════════════════════════════════════
+   Settings: export / import (trale format) / clear
+   ═══════════════════════════════════════════════════════ */
+function openSettings(){document.getElementById('settingsModal').classList.add('show')}
+function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
+
+function exportData(){
+  if(entries.length===0){toast('No data to export');return}
+  var lines=['# This file was created with Weight Tracker (trale-compatible).','#Date weight[kg]'];
+  for(var i=0;i<entries.length;i++){
+    lines.push(entries[i].date+'T12:00:00.000 '+entries[i].weight.toFixed(1));
+  }
+  var blob=new Blob([lines.join('\n')+'\n'],{type:'text/plain'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='weight_'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);
+  toast('Exported '+entries.length+' entries');
+}
+
+function importData(input){
+  var file=input.files&&input.files[0];
+  input.value='';
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    var lines=String(reader.result).split(/\r?\n/);
+    var map={},imported=0,skipped=0;
+    for(var i=0;i<entries.length;i++)map[entries[i].date]=entries[i].weight;
+    for(i=0;i<lines.length;i++){
+      var line=lines[i].trim();
+      if(!line||line.charAt(0)==='#')continue;
+      var parts=line.split(/\s+/);
+      var dm=parts[0].match(/^(\d{4}-\d{2}-\d{2})/);
+      var w=parts.length>=2?parseFloat(parts[1]):NaN;
+      if(!dm||isNaN(new Date(dm[1]+'T12:00:00').getTime())||
+         isNaN(w)||!isFinite(w)||w<=0||w>500){skipped++;continue}
+      map[dm[1]]=Math.round(w*10)/10;
+      imported++;
+    }
+    if(imported===0){toast('No valid entries found');return}
+    entries=Object.keys(map).map(function(d){return{date:d,weight:map[d]}});
+    entries.sort(function(a,b){return a.date.localeCompare(b.date)});
+    saveData(entries);
+    updateChart();
+    closeSettings();
+    toast('Imported '+imported+(skipped?' ('+skipped+' skipped)':''));
+  };
+  reader.readAsText(file);
+}
+
+function clearData(){
+  if(entries.length===0){toast('Nothing to clear');return}
+  if(!confirm('Delete all '+entries.length+' entries? This cannot be undone.'))return;
+  entries=[];
+  saveData(entries);
+  updateChart();
+  closeSettings();
+  toast('All data cleared');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -672,6 +799,13 @@ function init(){
 
   document.getElementById('weightValue').addEventListener('keydown',function(e){
     if(e.key==='Enter')addWeight();
+  });
+
+  document.getElementById('settingsModal').addEventListener('click',function(e){
+    if(e.target===this)closeSettings();
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape')closeSettings();
   });
 }
 
