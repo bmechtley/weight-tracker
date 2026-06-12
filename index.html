@@ -495,10 +495,12 @@ function initChart(){
          pointBackgroundColor:function(c){return c.raw&&c.raw.label===selectedPoint?'#ff9800':'#4fc3f7'},
          pointRadius:function(c){return c.raw&&c.raw.label===selectedPoint?6:1.5},
          pointBorderWidth:0,pointHoverRadius:5,pointHitRadius:12,showLine:false,order:1},
-        {label:'AR(2) Fit',data:[],borderColor:'#ff9800',backgroundColor:'transparent',
-         borderDash:[5,3],borderWidth:2,pointRadius:0,showLine:true,tension:0,order:2},
-        {label:'Prediction',data:[],borderColor:'#66bb6a',backgroundColor:'#66bb6a',
-         pointRadius:8,pointHoverRadius:12,pointStyle:'star',showLine:false,borderWidth:2,order:0}
+        {label:'AR(2) Fit',data:[],borderColor:'rgba(255,152,0,0.55)',backgroundColor:'transparent',
+         borderWidth:1,pointRadius:0,showLine:true,tension:0,pointStyle:'line',order:2},
+        {label:'Target',data:[],borderColor:'#e1bee7',backgroundColor:'#e1bee7',
+         pointRadius:5,pointHoverRadius:8,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
+        {label:'predline',data:[],borderColor:'rgba(186,104,200,0.4)',backgroundColor:'transparent',
+         borderWidth:1,pointRadius:0,pointHitRadius:0,showLine:true,order:3}
       ]
     },
     options:{
@@ -511,8 +513,12 @@ function initChart(){
         openPointEdit(dp.label,dp.y);
       },
       plugins:{
-        legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},boxWidth:8}},
-        tooltip:{callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return ds+': '+dp.y.toFixed(1)}}},
+        legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},
+          boxWidth:12,boxHeight:6,
+          filter:function(item){return item.datasetIndex!==3}}},
+        tooltip:{
+          filter:function(item){return item.datasetIndex!==3},
+          callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return ds+': '+dp.y.toFixed(1)}}},
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
@@ -587,6 +593,7 @@ function updateChart(keepZoom){
   chart.data.datasets[0].data=raw;
   chart.data.datasets[1].data=computeFitCurve(sorted);
   chart.data.datasets[2].data=[];
+  chart.data.datasets[3].data=[];
 
   // auto-predict after chart update
   if(!keepZoom)chart.resetZoom();
@@ -639,6 +646,7 @@ function autoPredict(keepZoom){
   if(!target||entries.length<2){
     document.getElementById('predResult').innerHTML='<span style="color:var(--text2)">—</span>';
     chart.data.datasets[2].data=[];
+    chart.data.datasets[3].data=[];
     updateZoomLimits();
     chart.update();
     return;
@@ -648,6 +656,7 @@ function autoPredict(keepZoom){
     document.getElementById('predResult').innerHTML=
       '<span style="color:var(--text2)">after '+entries[entries.length-1].date+'</span>';
     chart.data.datasets[2].data=[];
+    chart.data.datasets[3].data=[];
     updateZoomLimits();
     chart.update();
     return;
@@ -665,6 +674,13 @@ function autoPredict(keepZoom){
   chart.data.datasets[2].data=[predPoint];
   updateZoomLimits();
 
+  // horizontal line at the predicted weight, spanning the pannable range
+  var lim=chart.options.plugins.zoom.limits.x;
+  chart.data.datasets[3].data=[
+    {x:lim.min,y:result.predicted},
+    {x:lim.max,y:result.predicted}
+  ];
+
   // If pred point off screen, zoom to include it (not while tweaking phi)
   var curMax=chart.scales.x.max;
   if(!keepZoom&&predPoint.x>curMax){
@@ -672,6 +688,8 @@ function autoPredict(keepZoom){
   }else{
     chart.update();
   }
+  // refit y so the target dot/line are vertically in view
+  if(!keepZoom)autoScaleY(chart);
 }
 
 /* ═══════════════════════════════════════════════════════
