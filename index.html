@@ -361,9 +361,14 @@ function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d))}
 var SETTINGS_KEY='weightTrackerSettings';
 function saveSettings(){
   try{
+    var zoom=null;
+    if(chart&&chart.scales&&chart.scales.x&&entries.length>0){
+      zoom={min:chart.scales.x.min,max:chart.scales.x.max};
+    }
     localStorage.setItem(SETTINGS_KEY,JSON.stringify({
       phiOverride:phiOverride,
-      predDate:document.getElementById('predDate').value||null
+      predDate:document.getElementById('predDate').value||null,
+      zoom:zoom
     }));
   }catch(e){}
 }
@@ -498,7 +503,7 @@ function initChart(){
         {label:'AR(2) Fit',data:[],borderColor:'rgba(255,152,0,0.55)',backgroundColor:'transparent',
          borderWidth:1,pointRadius:0,showLine:true,tension:0,pointStyle:'line',order:2},
         {label:'Target',data:[],borderColor:'#e1bee7',backgroundColor:'#e1bee7',
-         pointRadius:5,pointHoverRadius:8,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
+         pointRadius:3.5,pointHoverRadius:6,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
         {label:'predline',data:[],borderColor:'rgba(186,104,200,0.4)',backgroundColor:'transparent',
          borderWidth:1,pointRadius:0,pointHitRadius:0,showLine:true,order:3}
       ]
@@ -522,11 +527,11 @@ function initChart(){
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoomComplete:function(ctx){autoScaleY(ctx.chart)}
+            onZoomComplete:function(ctx){autoScaleY(ctx.chart);saveSettings()}
           },
           pan:{
             enabled:true,mode:'x',
-            onPanComplete:function(ctx){autoScaleY(ctx.chart)}
+            onPanComplete:function(ctx){autoScaleY(ctx.chart);saveSettings()}
           },
           limits:{x:{minRange:86400000*2}}
         }
@@ -550,8 +555,8 @@ function autoScaleY(c){
   if(!xs||!ys)return;
   var xMin=xs.min,xMax=xs.max;
   var yMin=Infinity,yMax=-Infinity;
-  c.data.datasets.forEach(function(ds){
-    if(!ds.data||ds.hidden)return;
+  c.data.datasets.forEach(function(ds,di){
+    if(!ds.data||ds.hidden||di===3)return; // skip the vertical target line
     ds.data.forEach(function(pt){
       if(pt.x>=xMin&&pt.x<=xMax){if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y}
     });
@@ -580,6 +585,21 @@ function computeFitCurve(sorted){
     points.push({x:date,y:Math.round(fw*10)/10,label:sorted[i].date});
   }
   return points;
+}
+
+/* Daily AR(2) forecast from the last data point out to the target date */
+function forecastCurve(targetDateStr){
+  if(model===null)return[];
+  var phi=effPhi(),g=model.grid,L=g.length;
+  var targD=new Date(targetDateStr+'T12:00');
+  var dT=Math.round((targD.getTime()-model.t0)/86400000);
+  var out=[],r1=g[L-1],r2=L>1?g[L-2]:0;
+  for(var d=L;d<=dT;d++){
+    var rn=phi[0]*r1+phi[1]*r2;
+    r2=r1;r1=rn;
+    out.push({x:model.t0+d*86400000,y:Math.round((model.a+model.b*d+r1)*10)/10});
+  }
+  return out;
 }
 
 function updateChart(keepZoom){
@@ -655,6 +675,7 @@ function autoPredict(keepZoom){
   if(!result){
     document.getElementById('predResult').innerHTML=
       '<span style="color:var(--text2)">after '+entries[entries.length-1].date+'</span>';
+    chart.data.datasets[1].data=computeFitCurve(entries); // drop stale forecast
     chart.data.datasets[2].data=[];
     chart.data.datasets[3].data=[];
     updateZoomLimits();
@@ -674,11 +695,16 @@ function autoPredict(keepZoom){
   chart.data.datasets[2].data=[predPoint];
   updateZoomLimits();
 
-  // horizontal line at the predicted weight, spanning the pannable range
-  var lim=chart.options.plugins.zoom.limits.x;
+  // extend the AR(2) curve past the data with the forecast to the target
+  chart.data.datasets[1].data=computeFitCurve(entries).concat(forecastCurve(target));
+
+  // vertical line at the target date (y span generous; clipped to chart area)
+  var ws=entries.map(function(e){return e.weight});
+  var loY=Math.min(Math.min.apply(null,ws),result.predicted)-10;
+  var hiY=Math.max(Math.max.apply(null,ws),result.predicted)+10;
   chart.data.datasets[3].data=[
-    {x:lim.min,y:result.predicted},
-    {x:lim.max,y:result.predicted}
+    {x:predPoint.x,y:loY},
+    {x:predPoint.x,y:hiY}
   ];
 
   // If pred point off screen, zoom to include it (not while tweaking phi)
@@ -1020,6 +1046,19 @@ function init(){
   initChart();
 
   if(entries.length>0){updateChart()}else{chart.update();updateFittedStats();updatePhiUI();autoPredict()}
+
+  // Restore last session's zoom window (clamped to current pan limits)
+  if(entries.length>0&&settings.zoom&&
+     isFinite(settings.zoom.min)&&isFinite(settings.zoom.max)&&
+     settings.zoom.max>settings.zoom.min){
+    var zl=chart.options.plugins.zoom.limits.x;
+    var zmin=zl.min!==undefined?Math.max(settings.zoom.min,zl.min):settings.zoom.min;
+    var zmax=zl.max!==undefined?Math.min(settings.zoom.max,zl.max):settings.zoom.max;
+    if(zmax>zmin){
+      chart.zoomScale('x',{min:zmin,max:zmax},'none');
+      autoScaleY(chart);
+    }
+  }
 
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
