@@ -313,31 +313,29 @@ input[type=range]::-moz-range-thumb{
 <div class="controls">
   <div id="normalControls" style="display:contents">
     <div class="ctrl-row">
-      <span style="display:flex;gap:6px;align-items:center;flex:1;width:50%"><label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="weightDate" style="width:100%;flex:none;min-width:0"></span>
-
-      <input type="number" id="weightValue" placeholder="lbs" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
-      <button class="btn btn-add" onclick="addWeight()">+</button>
+      <span style="display:flex;align-items:center;gap:6px;flex:0 0 50%;min-width:0"><label title="Date &amp; time" style="flex:none"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
+      <input type="datetime-local" id="weightDate" style="flex:1;min-width:0"></span>
+      <input type="number" id="weightValue" placeholder="lbs" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1;min-width:0">
+      <button class="btn btn-add" onclick="addWeight()" style="flex:none">+</button>
     </div>
 
     <div class="ctrl-row">
-      <span style="display:flex;gap:6px;align-items:center;flex:1;width:50%"><label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
-      <input type="date" id="predDate" onchange="onPredDateChange()" style="width:100%;flex:none;min-width:0"></span>
+      <span style="display:flex;align-items:center;gap:6px;flex:0 0 50%;min-width:0"><label title="Predict date" style="flex:none"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
+      <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:1;min-width:0"></span>
       <span class="pred-display" id="predResult" style="color:#e1bee7;flex:1;min-width:0">—</span>
     </div>
     <div class="ctrl-row">
-      <span style="display:flex;gap:6px;align-items:center;flex:1;width:50%"><label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
-      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="width:100%;flex:none;min-width:0"></span>
+      <span style="display:flex;align-items:center;gap:6px;flex:0 0 50%;min-width:0"><label title="Goal weight" style="flex:none"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:1;min-width:0"></span>
       <span class="pred-display" id="goalResult" style="flex:1;min-width:0">—</span>
     </div>
   </div>
 
   <div id="editControls" style="display:none">
     <div class="ctrl-row">
-      <label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="editDate" style="width:50%;flex:none;min-width:0">
-
-      <input type="number" id="editWeight" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
+      <span style="display:flex;align-items:center;gap:6px;flex:0 0 50%;min-width:0"><label title="Date &amp; time" style="flex:none"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
+      <input type="datetime-local" id="editDate" style="flex:1;min-width:0"></span>
+      <input type="number" id="editWeight" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1;min-width:0">
     </div>
     <div class="ctrl-row">
       <button class="btn btn-add" onclick="savePoint()" style="flex:1">💾 Save</button>
