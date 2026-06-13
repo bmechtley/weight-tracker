@@ -78,15 +78,16 @@ header h1{
   background:#2a6e8a;border-radius:1px;pointer-events:auto;
 }
 .range-handle{
-  position:absolute;top:6px;width:14px;height:8px;margin-left:-7px;
+  position:absolute;top:0;width:28px;height:20px;margin-left:-14px;
   background:transparent;
   touch-action:none;cursor:col-resize;
   z-index:11;pointer-events:auto;
 }
 .range-handle::after{
-  content:'';position:absolute;left:5px;top:0;width:4px;height:8px;
+  content:'';position:absolute;left:12px;top:6px;width:4px;height:8px;
   background:#4fc3f7;border-radius:2px;
 }
+.range-fill{touch-action:none}
 
 
 
@@ -623,11 +624,11 @@ function initChart(){
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoomComplete:function(ctx){autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
+            onZoomComplete:function(ctx){updateZoomLimits();autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
           },
           pan:{
             enabled:true,mode:'x',
-            onPanComplete:function(ctx){autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
+            onPanComplete:function(ctx){updateZoomLimits();autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
           },
           limits:{x:{minRange:86400000*2}}
         }
