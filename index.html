@@ -760,10 +760,13 @@ function applyRange(minX,maxX){
       if(entries.length<2)return;
       var xs=chart.scales.x;
       if(!xs)return;
-      // Determine what was hit
       var rect=widget.getBoundingClientRect();
       var px=e.clientX-rect.left;
       var ratio=px/rect.width;
+
+      dragStartX=px;
+      dragStartMin=xs.min;
+      dragStartMax=xs.max;
 
       if(e.target===lh||e.target===rh){
         dragMode=e.target===lh?'left':'right';
@@ -773,15 +776,19 @@ function applyRange(minX,maxX){
         dragMode='pan';
       }else{
         // click on empty track → extend the nearer edge to the click
-        var midX=xToRatio((xs.min+xs.max)/2);
-        if(ratio<midX)applyRange(ratioToX(ratio),xs.max);
-        else applyRange(xs.min,ratioToX(ratio));
+        var clickX=ratioToX(ratio);
+        dragMode=ratio<xToRatio((dragStartMin+dragStartMax)/2)?'left':'right';
+        if(dragMode==='left'){
+          dragStartMin=Math.min(dragStartMax-86400000,Math.max(rangeDataBounds().lo,clickX));
+        }else{
+          dragStartMax=Math.max(dragStartMin+86400000,Math.min(rangeDataBounds().hi,clickX));
+        }
+        applyRange(dragStartMin,dragStartMax);
         syncRangeWidget();
+        widget.setPointerCapture(e.pointerId);
         return;
       }
-      dragStartX=px;
-      dragStartMin=xs.min;
-      dragStartMax=xs.max;
+
       widget.setPointerCapture(e.pointerId);
     });
 
