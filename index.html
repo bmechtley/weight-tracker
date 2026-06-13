@@ -597,6 +597,7 @@ function updateChart(keepZoom){
   // auto-predict after chart update
   if(!keepZoom)chart.resetZoom();
   chart.update();
+  autoScaleY(chart);
   updateModelStats();
   autoPredict(keepZoom);
 }
@@ -653,6 +654,7 @@ function autoPredict(keepZoom){
     chart.data.datasets[5].data=[];
     updateZoomLimits();
     chart.update();
+    autoScaleY(chart);
     return;
   }
   var result=predictWeight(target);
@@ -667,6 +669,7 @@ function autoPredict(keepZoom){
     chart.data.datasets[5].data=[];
     updateZoomLimits();
     chart.update();
+    autoScaleY(chart);
     return;
   }
   var targDs=new Date(target+'T12:00:00')
@@ -704,8 +707,9 @@ function autoPredict(keepZoom){
   }else{
     chart.update();
   }
-  // refit y so the target dot/line are vertically in view
-  if(!keepZoom)autoScaleY(chart);
+  // always refit y — Chart.js auto-scales from ALL visible datasets
+  // (including the band), so clamp it to just the weight points + target
+  autoScaleY(chart);
 }
 
 /* ═══════════════════════════════════════════════════════
