@@ -122,7 +122,7 @@ header h1{
 .zoom-btn:active{background:rgba(255,255,255,0.15)}
 .zoom-btn:focus,
 .zoom-btn:focus-visible,
-.zoom-btn:-moz-focusring{outline:none;background:transparent;box-shadow:none}
+.zoom-btn:-moz-focusring{outline:none;background:transparent!important;color:var(--text2)!important;box-shadow:none}
 .zoom-icon{padding:2px 6px;display:inline-flex;vertical-align:middle}
 .zoom-sep{width:1px;height:16px;background:rgba(255,255,255,0.1);margin:0 2px;flex-shrink:0;display:inline-block}
 
@@ -1499,10 +1499,8 @@ function init(){
     if(e.key==='Enter')savePoint();
   });
 
-  // Blur buttons after click so they don't stay highlighted
-  document.querySelectorAll('header button').forEach(function(b){
-    b.addEventListener('click',function(){this.blur()});
-  });
+  // Blur all header buttons after pointer-up so no sticky highlight
+  document.addEventListener('pointerup',function(e){var t=e.target.closest('button');if(t&&!t.closest('input,textarea,[contenteditable]'))t.blur()});
 }
 
 document.addEventListener('DOMContentLoaded',init);
