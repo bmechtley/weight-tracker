@@ -33,11 +33,12 @@ body{
 
 /* ── Header ── */
 header{
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:center;
   padding:6px 12px;background:var(--surface);
   border-bottom:1px solid rgba(255,255,255,0.06);
-  flex-shrink:0;gap:8px;
+  flex-shrink:0;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;
 }
+header::-webkit-scrollbar{display:none}
 header h1{
   font-size:0.95rem;font-weight:700;
   background:linear-gradient(135deg,var(--accent),#81d4fa);
