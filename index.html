@@ -1517,7 +1517,7 @@ function init(){
     if(e.key==='Escape'){cancelPointEdit()}
   });
 
-  document.getElementById('goalWeight').addEventListener('keydown',function(e){if(e.key==='Enter')onGoalChange();});
+  document.getElementById('goalWeight').addEventListener('keydown',function(e){if(e.key==='Enter'){onGoalChange();e.target.blur()}});
   document.getElementById('editWeight').addEventListener('keydown',function(e){
     if(e.key==='Enter')savePoint();
   });
