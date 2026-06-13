@@ -483,7 +483,7 @@ function initChart(){
       ]
     },
     options:{
-      responsive:true,maintainAspectRatio:false,animation:{duration:200},
+      responsive:true,maintainAspectRatio:false,animation:{duration:0},
       interaction:{mode:'nearest',intersect:false},
       onClick:function(evt,els,c){
         var hits=c.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
@@ -588,29 +588,20 @@ function updateChart(keepZoom){
   }});
   chart.data.datasets[0].data=raw;
 
-  // Compute tight Y range from weight data before setting the band,
-  // so Chart.js never auto-scales Y to the enormous band extents.
-  // Include the prior prediction point if it exists.
-  var xMin=chart.scales.x.min,xMax=chart.scales.x.max;
+  // Pre-fit Y from weight data + pred point so Chart.js never
+  // auto-scales to the band. This avoids jitter during slider drag.
   var yMin=Infinity,yMax=-Infinity;
   raw.forEach(function(pt){
-    if(pt.x>=xMin&&pt.x<=xMax){if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y}
+    if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y;
   });
   var predPt=chart.data.datasets[4].data[0];
-  if(predPt&&predPt.x>=xMin&&predPt.x<=xMax){
-    if(predPt.y<yMin)yMin=predPt.y;if(predPt.y>yMax)yMax=predPt.y;
-  }
-  // Fallback: use full data range if nothing in view
-  if(!isFinite(yMin)||!isFinite(yMax)){
-    for(var r=0;r<raw.length;r++){
-      if(!isFinite(yMin)||raw[r].y<yMin)yMin=raw[r].y;
-      if(!isFinite(yMax)||raw[r].y>yMax)yMax=raw[r].y;
-    }
-  }
+  if(predPt){if(predPt.y<yMin)yMin=predPt.y;if(predPt.y>yMax)yMax=predPt.y}
+  if(!isFinite(yMin))yMin=160;if(!isFinite(yMax))yMax=170;
   var pad=Math.max((yMax-yMin)*0.15,0.8);
   chart.scales.y.options.min=yMin-pad;
   chart.scales.y.options.max=yMax+pad;
 
+  // Fit band & mean (no forecast yet — autoPredict handles that)
   var curves=buildFitCurves(null);
   chart.data.datasets[1].data=curves.low;
   chart.data.datasets[2].data=curves.high;
@@ -619,9 +610,9 @@ function updateChart(keepZoom){
   chart.data.datasets[5].data=[];
 
   if(!keepZoom)chart.resetZoom();
-  chart.update();
   updateModelStats();
-  autoPredict(keepZoom);
+  autoPredictData(keepZoom);
+  chart.update('none');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -663,7 +654,9 @@ function updateZoomLimits(){
   lim.max=maxX+86400000*3;
 }
 
-function autoPredict(keepZoom){
+/* Set prediction data on the chart without calling chart.update().
+   Returns true if a valid prediction was set. */
+function autoPredictData(keepZoom){
   var dateEl=document.getElementById('predDate');
   var target=dateEl.value;
   if(!target||entries.length<2){
@@ -675,9 +668,7 @@ function autoPredict(keepZoom){
     chart.data.datasets[4].data=[];
     chart.data.datasets[5].data=[];
     updateZoomLimits();
-    chart.update();
-    autoScaleY(chart);
-    return;
+    return false;
   }
   var result=predictWeight(target);
   if(!result){
@@ -690,9 +681,7 @@ function autoPredict(keepZoom){
     chart.data.datasets[4].data=[];
     chart.data.datasets[5].data=[];
     updateZoomLimits();
-    chart.update();
-    autoScaleY(chart);
-    return;
+    return false;
   }
   var targDs=new Date(target+'T12:00:00')
     .toLocaleDateString(void 0,{month:'short',day:'numeric'});
@@ -700,20 +689,19 @@ function autoPredict(keepZoom){
     '<span class="val">'+result.predicted.toFixed(1)+'</span>'+
     '<span class="unit"> on '+targDs+' ('+result.daysDiff+'d)</span>';
 
-  // Update prediction point on chart
   var predPoint={
     x:new Date(target+'T12:00:00').getTime(),y:result.predicted,label:'Prediction: '+target
   };
   chart.data.datasets[4].data=[predPoint];
   updateZoomLimits();
 
-  // extend fit curves with the forecast to the target
+  // Forecast band + mean out to the target
   var curves=buildFitCurves(target);
   chart.data.datasets[1].data=curves.low;
   chart.data.datasets[2].data=curves.high;
   chart.data.datasets[3].data=curves.mean;
 
-  // vertical line at the target date (y span generous; clipped to chart area)
+  // Vertical line at target date
   var ws=entries.map(function(e){return e.weight});
   var loY=Math.min(Math.min.apply(null,ws),result.predicted)-10;
   var hiY=Math.max(Math.max.apply(null,ws),result.predicted)+10;
@@ -722,16 +710,32 @@ function autoPredict(keepZoom){
     {x:predPoint.x,y:hiY}
   ];
 
-  // If pred point off screen, zoom to include it (not when keepZoom)
-  var curMax=chart.scales.x.max;
-  if(!keepZoom&&predPoint.x>curMax){
-    chart.zoomScale('x',{min:chart.scales.x.min,max:predPoint.x+86400000*3},'default');
-  }else{
-    chart.update();
+  // Auto-zoom X if pred is off-screen (not during slider drag)
+  if(!keepZoom){
+    var curMax=chart.scales.x.max;
+    if(predPoint.x>curMax){
+      chart.zoomScale('x',{min:chart.scales.x.min,max:predPoint.x+86400000*3},'none');
+    }
   }
-  // always refit y — Chart.js auto-scales from ALL visible datasets
-  // (including the band), so clamp it to just the weight points + target
-  autoScaleY(chart);
+
+  // Re-fit Y so the prediction is in view
+  var yMin=Infinity,yMax=-Infinity;
+  chart.data.datasets[0].data.forEach(function(pt){
+    if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y;
+  });
+  if(predPoint.y<yMin)yMin=predPoint.y;
+  if(predPoint.y>yMax)yMax=predPoint.y;
+  var pad=Math.max((yMax-yMin)*0.15,0.8);
+  chart.scales.y.options.min=yMin-pad;
+  chart.scales.y.options.max=yMax+pad;
+  return true;
+}
+
+/* External entry point for the date picker onChange */
+function onPredDateChange(){
+  autoPredictData(false);
+  chart.update('none');
+  saveSettings();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -779,12 +783,6 @@ function resetNoise(){
   updateChart(true);
   saveSettings();
 }
-
-function onPredDateChange(){
-  autoPredict();
-  saveSettings();
-}
-
 /* ═══════════════════════════════════════════════════════
    Settings: export / import (trale format) / clear
    ═══════════════════════════════════════════════════════ */
