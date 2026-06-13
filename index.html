@@ -120,7 +120,9 @@ header h1{
 }
 .zoom-btn:hover{background:rgba(255,255,255,0.08);color:var(--text)}
 .zoom-btn:active{background:rgba(255,255,255,0.15)}
-.zoom-btn:focus{outline:none;background:transparent}
+.zoom-btn:focus,
+.zoom-btn:focus-visible,
+.zoom-btn:-moz-focusring{outline:none;background:transparent;box-shadow:none}
 .zoom-icon{padding:2px 6px;display:inline-flex;vertical-align:middle}
 .zoom-sep{width:1px;height:16px;background:rgba(255,255,255,0.1);margin:0 2px;flex-shrink:0;display:inline-block}
 
@@ -287,7 +289,7 @@ input[type=range]::-moz-range-thumb{
       <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:5px 0 0 5px">lbs</button>
       <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:0 5px 5px 0">kg</button>
       </span>
-      <span class="version-tag" id="versionTag">v2.0</span>
+      <span class="version-tag" id="versionTag">v2.1.0</span>
       <span style="display:flex;gap:4px;margin-left:auto;flex:none">
       <button class="btn" onclick="exportData()" style="flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;font-size:0.65rem;background:var(--surface);color:var(--text2);border:1px solid rgba(255,255,255,0.1);border-radius:5px"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="4.5" y="8" width="7" height="5" rx=".8"/><path d="M10 4h-4"/></svg></button>
       <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;font-size:0.65rem;background:var(--surface);color:var(--text2);border:1px solid rgba(255,255,255,0.1);border-radius:5px"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6l3-3 3 3"/><path d="M2 12h12"/><path d="M3 12v1.5M13 12v1.5"/></svg></button>
@@ -310,7 +312,7 @@ input[type=range]::-moz-range-thumb{
   <div id="normalControls" style="display:contents">
     <div class="ctrl-row">
       <label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="weightDate" style="flex:2;min-width:0">
+      <input type="datetime-local" id="weightDate" style="width:50%;flex:none;min-width:0">
 
       <input type="number" id="weightValue" placeholder="lbs" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
       <button class="btn btn-add" onclick="addWeight()">+</button>
@@ -318,12 +320,12 @@ input[type=range]::-moz-range-thumb{
 
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
-      <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:2;min-width:0">
+      <input type="date" id="predDate" onchange="onPredDateChange()" style="width:50%;flex:none;min-width:0">
       <span class="pred-display" id="predResult" style="color:#e1bee7;flex:1;min-width:0">—</span>
     </div>
     <div class="ctrl-row">
       <label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
-      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:2;min-width:0">
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="width:50%;flex:none;min-width:0">
       <span class="pred-display" id="goalResult" style="flex:1;min-width:0">—</span>
     </div>
   </div>
@@ -331,7 +333,7 @@ input[type=range]::-moz-range-thumb{
   <div id="editControls" style="display:none">
     <div class="ctrl-row">
       <label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="editDate" style="flex:2;min-width:0">
+      <input type="datetime-local" id="editDate" style="width:50%;flex:none;min-width:0">
 
       <input type="number" id="editWeight" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
     </div>
@@ -441,7 +443,7 @@ function loadSettings(){
 /* ═══════════════════════════════════════════════════════
    Version
    ═══════════════════════════════════════════════════════ */
-var APP_VERSION='v2.0';
+var APP_VERSION='v2.1.0';
 /* Bump version — call bumpVersion('2.1') to update. A guard
    in the HTML element so future bumps update the display. */
 function bumpVersion(v){APP_VERSION=v;var el=document.getElementById('versionTag');if(el)el.textContent='v'+APP_VERSION;saveSettings()}
@@ -1489,6 +1491,11 @@ function init(){
   document.getElementById('goalWeight').addEventListener('keydown',function(e){if(e.key==='Enter')onGoalChange();});
   document.getElementById('editWeight').addEventListener('keydown',function(e){
     if(e.key==='Enter')savePoint();
+  });
+
+  // Blur buttons after click so they don't stay highlighted
+  document.querySelectorAll('header button').forEach(function(b){
+    b.addEventListener('click',function(){this.blur()});
   });
 }
 
