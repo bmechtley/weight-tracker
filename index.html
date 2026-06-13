@@ -233,17 +233,17 @@ input[type=range]::-webkit-slider-thumb{
       <button class="btn btn-add" onclick="addWeight()">+Add</button>
     </div>
 
-    <div class="ctrl-row phi-row">
-      <label title="AR(2) lag-1 coefficient">φ₁</label>
-      <input type="range" id="phi1Slider" min="-500" max="1999" step="1" value="800" oninput="onPhiChange()" style="flex:1">
-      <span class="phi-val" id="phi1Val">0.80</span>
+    <div class="ctrl-row">
+      <label title="Measurement noise (lbs)">σ<sub>m</sub></label>
+      <input type="range" id="measSlider" min="5" max="500" step="1" value="50" oninput="onNoiseChange()" style="flex:1">
+      <span class="phi-val" id="measVal">0.50</span>
     </div>
-    <div class="ctrl-row phi-row">
-      <label title="AR(2) lag-2 coefficient">φ₂</label>
-      <input type="range" id="phi2Slider" min="-999" max="999" step="1" value="0" oninput="onPhiChange()" style="flex:1">
-      <span class="phi-val" id="phi2Val">0.00</span>
-      <span class="phi-fitted" id="phiFittedLabel"></span>
-      <button class="btn-reset" id="resetBtn" onclick="resetPhi()" style="display:none">↺</button>
+    <div class="ctrl-row">
+      <label title="Process noise (lbs/day)">σ<sub>p</sub></label>
+      <input type="range" id="procSlider" min="1" max="200" step="1" value="10" oninput="onNoiseChange()" style="flex:1">
+      <span class="phi-val" id="procVal">0.10</span>
+      <span class="phi-fitted" id="noiseFittedLabel"></span>
+      <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
     </div>
 
     <div class="ctrl-row">
@@ -366,7 +366,8 @@ function saveSettings(){
       zoom={min:chart.scales.x.min,max:chart.scales.x.max};
     }
     localStorage.setItem(SETTINGS_KEY,JSON.stringify({
-      phiOverride:phiOverride,
+      measNoiseOverride:measNoiseOverride,
+      procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
       zoom:zoom
     }));
@@ -380,79 +381,54 @@ function loadSettings(){
    State
    ═══════════════════════════════════════════════════════ */
 var entries=loadData();
-var phiOverride=null; // [phi1,phi2] or null
+var measNoiseOverride=null; // in lbs
+var procNoiseOverride=null; // in lbs/day
 var chart=null;
 var model=null;
 var selectedPoint=null; // date key of point being edited
-var DEFAULT_PHI1=0.8,DEFAULT_PHI2=0; // per-day; equals AR(1) 0.8 (~3-day half-life)
+var DEFAULT_MEAS=0.5,DEFAULT_PROC=0.1;
 
 /* ═══════════════════════════════════════════════════════
-   Model: linear trend + AR(2) on deviations from trend.
-   Trend extrapolates (2 points → exact line through them).
-   Residuals are linearly resampled onto a DAILY grid so the
-   coefficients are per-day regardless of logging cadence:
-   r[d] = phi1*r[d-1] + phi2*r[d-2] + noise.
+   Kalman filter: constant-velocity model with configurable
+   measurement noise (σm, lbs) and process noise (σp, lbs/day).
+   State = [weight, weight-change-rate]; the filter handles
+   irregular time steps naturally via dt in the predict step.
    ═══════════════════════════════════════════════════════ */
-function stabilizePhi(p1,p2){
-  // clamp into the AR(2) stationarity triangle:
-  // |phi2|<1, phi1+phi2<1, phi2-phi1<1
-  if(isNaN(p1))p1=0;
-  if(isNaN(p2))p2=0;
-  p2=Math.max(-0.98,Math.min(0.98,p2));
-  var lim=0.999*(1-p2);
-  p1=Math.max(-lim,Math.min(lim,p1));
-  return[p1,p2];
-}
-
-function fitModel(data){
-  if(data.length<2)return null;
+function kalmanFilter(data){
+  if(data.length<1)return null;
   var t0=parseDT(data[0].date).getTime();
   var n=data.length,pts=[];
-  for(var i=0;i<n;i++){
-    pts.push({t:(parseDT(data[i].date).getTime()-t0)/86400000,w:data[i].weight});
-  }
-  var sumT=0,sumW=0,sumTW=0,sumT2=0;
-  for(i=0;i<n;i++){sumT+=pts[i].t;sumW+=pts[i].w;sumTW+=pts[i].t*pts[i].w;sumT2+=pts[i].t*pts[i].t}
-  var denom=n*sumT2-sumT*sumT;
-  var b=denom!==0?(n*sumTW-sumT*sumW)/denom:0;
-  var a=(sumW-b*sumT)/n;
-  var resid=[];
-  for(i=0;i<n;i++){resid.push({t:pts[i].t,r:pts[i].w-(a+b*pts[i].t)})}
+  for(var i=0;i<n;i++)pts.push({t:(parseDT(data[i].date).getTime()-t0)/86400000,w:data[i].weight});
+  var mn=measNoiseOverride!==null?Math.max(0.01,measNoiseOverride):DEFAULT_MEAS;
+  var pn=procNoiseOverride!==null?Math.max(0.001,procNoiseOverride):DEFAULT_PROC;
+  var R=mn*mn;
 
-  // daily grid of residuals (linear interpolation between samples)
-  var L=Math.max(1,Math.round(pts[n-1].t)+1);
-  var grid=new Array(L),j=0;
-  for(var d=0;d<L;d++){
-    while(j<n-2&&resid[j+1].t<=d)j++;
-    if(d<=resid[0].t)grid[d]=resid[0].r;
-    else if(d>=resid[n-1].t)grid[d]=resid[n-1].r;
-    else{
-      var A=resid[j],B=resid[j+1];
-      grid[d]=B.t>A.t?A.r+(B.r-A.r)*(d-A.t)/(B.t-A.t):A.r;
-    }
-  }
+  // Initialize from first 1-2 points
+  var x=[pts[0].w,0]; // [weight, rate (lbs/day)]
+  var P=[[100,0],[0,25]];
+  var results=[],L=pts[pts.length-1].t;
 
-  // AR(2) least squares on the daily grid
-  var p1=DEFAULT_PHI1,p2=DEFAULT_PHI2;
-  if(n>=4&&L>=6){
-    var s11=0,s22=0,s12=0,s1y=0,s2y=0;
-    for(d=2;d<L;d++){
-      var x1=grid[d-1],x2=grid[d-2],y=grid[d];
-      s11+=x1*x1;s22+=x2*x2;s12+=x1*x2;s1y+=x1*y;s2y+=x2*y;
-    }
-    var det=s11*s22-s12*s12;
-    if(Math.abs(det)>1e-9){
-      var st=stabilizePhi((s1y*s22-s2y*s12)/det,(s2y*s11-s1y*s12)/det);
-      p1=st[0];p2=st[1];
-    }
-  }
-  return{a:a,b:b,phi1:p1,phi2:p2,t0:t0,resid:resid,grid:grid};
-}
+  results.push({t:pts[0].t,mean:x[0],var:P[0][0],x1:x[1],P11:P[1][1],P01:P[0][1]});
+  for(var i=1;i<n;i++){
+    var dt=Math.max(pts[i].t-pts[i-1].t,0.001);
+    var dt2=dt*dt,dt3=dt2*dt,q=pn*pn;
 
-function effPhi(){
-  if(phiOverride!==null)return stabilizePhi(phiOverride[0],phiOverride[1]);
-  if(model!==null)return[model.phi1,model.phi2];
-  return[DEFAULT_PHI1,DEFAULT_PHI2];
+    // Predict
+    var x0p=x[0]+x[1]*dt, x1p=x[1];
+    var P00p=P[0][0]+2*dt*P[0][1]+dt2*P[1][1]+q*dt3/3;
+    var P01p=P[0][1]+dt*P[1][1]+q*dt2/2;
+    var P11p=P[1][1]+q*dt;
+
+    // Update (scalar observation H=[1,0])
+    var y=pts[i].w-x0p; // innovation
+    var S=P00p+R;
+    if(S<1e-15){x=[x0p,x1p];P=[[P00p,P01p],[P01p,P11p]];continue}
+    var K0=P00p/S,K1=P01p/S;
+    x=[x0p+K0*y, x1p+K1*y];
+    P=[[(1-K0)*P00p,(1-K0)*P01p],[(1-K0)*P01p,P11p-K1*P01p]];
+    results.push({t:pts[i].t,mean:x[0],var:P[0][0],x1:x[1],P11:P[1][1],P01:P[0][1]});
+  }
+  return{t0:t0,results:results,x:x,P:P,lastT:pts[n-1].t,mn:mn,pn:pn};
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -460,30 +436,24 @@ function effPhi(){
    ═══════════════════════════════════════════════════════ */
 function predictWeight(targetDateStr){
   if(model===null)return null;
-  var phi=effPhi();
+  var pn=procNoiseOverride!==null?Math.max(0.001,procNoiseOverride):DEFAULT_PROC;
   var last=entries[entries.length-1];
   var lastD=parseDT(last.date);
   var targD=new Date(targetDateStr+'T12:00');
   var days=(targD-lastD)/86400000;
   if(days<=0)return null;
 
-  var tTarg=(targD.getTime()-model.t0)/86400000;
-  var trend=model.a+model.b*tTarg;
-
-  // iterate the AR(2) recursion forward on the daily grid
-  var L=model.grid.length;
-  var r1=model.grid[L-1],r2=L>1?model.grid[L-2]:0;
-  var steps=Math.max(1,Math.round(tTarg)-(L-1));
-  for(var s=0;s<steps;s++){
-    var rn=phi[0]*r1+phi[1]*r2;
-    r2=r1;r1=rn;
-  }
-  var predicted=trend+r1;
+  var dt=days;
+  var dt2=dt*dt,dt3=dt2*dt,q=pn*pn;
+  var x=model.x,P=model.P;
+  var mean=x[0]+x[1]*dt;
+  var varPred=P[0][0]+2*dt*P[0][1]+dt2*P[1][1]+q*dt3/3;
 
   return{
-    predicted:Math.round(predicted*10)/10,
+    predicted:Math.round(mean*10)/10,
     date:targetDateStr,daysDiff:Math.round(days),
-    phi:phi,lastWeight:last.weight,lastDate:last.date
+    varPred:varPred,stdPred:Math.round(Math.sqrt(varPred)*10)/10,
+    lastWeight:last.weight,lastDate:last.date
   };
 }
 
@@ -500,7 +470,11 @@ function initChart(){
          pointBackgroundColor:function(c){return c.raw&&c.raw.label===selectedPoint?'#ff9800':'#4fc3f7'},
          pointRadius:function(c){return c.raw&&c.raw.label===selectedPoint?6:1.5},
          pointBorderWidth:0,pointHoverRadius:5,pointHitRadius:12,showLine:false,order:1},
-        {label:'AR(2) Fit',data:[],borderColor:'rgba(255,152,0,0.55)',backgroundColor:'transparent',
+        {label:'Fit σ−',data:[],borderColor:'transparent',backgroundColor:'transparent',
+         pointRadius:0,showLine:true,tension:0,order:2},
+        {label:'Fit σ+',data:[],borderColor:'transparent',backgroundColor:'rgba(255,152,0,0.12)',
+         fill:'-1',pointRadius:0,showLine:true,tension:0,order:2},
+        {label:'Fit',data:[],borderColor:'rgba(255,152,0,0.55)',backgroundColor:'transparent',
          borderWidth:1,pointRadius:0,showLine:true,tension:0,pointStyle:'line',order:2},
         {label:'Target',data:[],borderColor:'#e1bee7',backgroundColor:'#e1bee7',
          pointRadius:3.5,pointHoverRadius:6,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
@@ -520,9 +494,9 @@ function initChart(){
       plugins:{
         legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},
           boxWidth:12,boxHeight:6,
-          filter:function(item){return item.datasetIndex!==3}}},
+          filter:function(item){return item.datasetIndex!==1&&item.datasetIndex!==2&&item.datasetIndex!==5}}},
         tooltip:{
-          filter:function(item){return item.datasetIndex!==3},
+          filter:function(item){return item.datasetIndex!==1&&item.datasetIndex!==2&&item.datasetIndex!==5},
           callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return ds+': '+dp.y.toFixed(1)}}},
         zoom:{
           zoom:{
@@ -556,7 +530,7 @@ function autoScaleY(c){
   var xMin=xs.min,xMax=xs.max;
   var yMin=Infinity,yMax=-Infinity;
   c.data.datasets.forEach(function(ds,di){
-    if(!ds.data||ds.hidden||di===3)return; // skip the vertical target line
+    if(!ds.data||ds.hidden||di===1||di===2||di===5)return;
     ds.data.forEach(function(pt){
       if(pt.x>=xMin&&pt.x<=xMax){if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y}
     });
@@ -567,85 +541,90 @@ function autoScaleY(c){
   c.update('none');
 }
 
-function computeFitCurve(sorted){
-  if(model===null)return[];
-  var phi=effPhi(),points=[],g=model.grid;
-  for(var i=0;i<sorted.length;i++){
-    var date=parseDT(sorted[i].date).getTime();
-    var t=model.resid[i].t;
-    var fw;
-    if(i===0)fw=sorted[0].weight;
-    else{
-      // one-day-ahead AR(2) on the daily residual grid
-      var d=Math.round(t);
-      var r1=g[Math.max(0,Math.min(g.length-1,d-1))];
-      var r2=g[Math.max(0,Math.min(g.length-1,d-2))];
-      fw=model.a+model.b*t+phi[0]*r1+phi[1]*r2;
+/* Build three curves: mean, lower (μ-σ), upper (μ+σ) for the
+   Kalman filter fit (historical) + forecast (to target date).
+   Steps day-by-day so the uncertainty band grows with the gap. */
+function buildFitCurves(targetDateStr){
+  if(model===null||!model.results.length)return{mean:[],low:[],high:[]};
+  var res=model.results,t0=model.t0;
+  var pn=procNoiseOverride!==null?Math.max(0.001,procNoiseOverride):DEFAULT_PROC;
+  var maxD=res[res.length-1].t;
+  if(targetDateStr){
+    var tT=(new Date(targetDateStr+'T12:00').getTime()-t0)/86400000;
+    if(tT>maxD)maxD=Math.ceil(tT);
+  }
+  maxD=Math.max(maxD,0);
+  var mean=[],low=[],high=[],idx=0;
+  for(var d=0;d<=maxD;d++){
+    while(idx<res.length-1&&res[idx+1].t<=d)idx++;
+    var m,v;
+    if(d<=res[idx].t||idx===res.length-1){
+      m=res[idx].mean;v=res[idx].var;
+    }else{
+      var dt=d-res[idx].t;
+      var dt2=dt*dt,dt3=dt2*dt;
+      var st0=res[idx].mean,st1=res[idx].x1;
+      var P00=res[idx].var,P01=res[idx].P01,P11=res[idx].P11;
+      m=st0+st1*dt;
+      v=P00+2*dt*P01+dt2*P11+pn*pn*dt3/3;
     }
-    points.push({x:date,y:Math.round(fw*10)/10,label:sorted[i].date});
+    var s=Math.sqrt(Math.max(v,0));
+    var x=t0+d*86400000;
+    mean.push({x:x,y:+m.toFixed(1)});
+    low.push({x:x,y:+(m-s).toFixed(1)});
+    high.push({x:x,y:+(m+s).toFixed(1)});
   }
-  return points;
-}
-
-/* Daily AR(2) forecast from the last data point out to the target date */
-function forecastCurve(targetDateStr){
-  if(model===null)return[];
-  var phi=effPhi(),g=model.grid,L=g.length;
-  var targD=new Date(targetDateStr+'T12:00');
-  var dT=Math.round((targD.getTime()-model.t0)/86400000);
-  var out=[],r1=g[L-1],r2=L>1?g[L-2]:0;
-  for(var d=L;d<=dT;d++){
-    var rn=phi[0]*r1+phi[1]*r2;
-    r2=r1;r1=rn;
-    out.push({x:model.t0+d*86400000,y:Math.round((model.a+model.b*d+r1)*10)/10});
-  }
-  return out;
+  return{mean:mean,low:low,high:high};
 }
 
 function updateChart(keepZoom){
   if(!chart)return;
   var sorted=[].concat(entries).sort(function(a,b){return a.date.localeCompare(b.date)});
-  model=fitModel(sorted);
+  model=kalmanFilter(sorted);
 
   var raw=sorted.map(function(e){return{
     x:parseDT(e.date).getTime(),y:e.weight,label:e.date
   }});
   chart.data.datasets[0].data=raw;
-  chart.data.datasets[1].data=computeFitCurve(sorted);
-  chart.data.datasets[2].data=[];
-  chart.data.datasets[3].data=[];
+  var curves=buildFitCurves(null);
+  chart.data.datasets[1].data=curves.low;
+  chart.data.datasets[2].data=curves.high;
+  chart.data.datasets[3].data=curves.mean;
+  chart.data.datasets[4].data=[];
+  chart.data.datasets[5].data=[];
 
   // auto-predict after chart update
   if(!keepZoom)chart.resetZoom();
   chart.update();
-  updateFittedStats();
+  updateModelStats();
   autoPredict(keepZoom);
 }
 
 /* ═══════════════════════════════════════════════════════
    UI updates
    ═══════════════════════════════════════════════════════ */
-function updateFittedStats(){
-  var fl=document.getElementById('phiFittedLabel');
+function updateModelStats(){
+  var fl=document.getElementById('noiseFittedLabel');
   if(model!==null){
-    fl.textContent='fit '+model.phi1.toFixed(2)+','+model.phi2.toFixed(2);
+    fl.textContent='σₘ='+model.mn.toFixed(2)+' σₚ='+model.pn.toFixed(2);
   }else{fl.textContent='';}
 
-  if(phiOverride===null&&model!==null){
-    document.getElementById('phi1Slider').value=Math.round(model.phi1*1000);
-    document.getElementById('phi2Slider').value=Math.round(model.phi2*1000);
-    updatePhiUI();
+  if(measNoiseOverride===null&&procNoiseOverride===null&&model!==null){
+    document.getElementById('measSlider').value=Math.round(model.mn*100);
+    document.getElementById('procSlider').value=Math.round(model.pn*100);
+    updateNoiseUI();
   }
 }
 
-function updatePhiUI(){
-  var ov=phiOverride!==null;
+function updateNoiseUI(){
+  var ov=measNoiseOverride!==null||procNoiseOverride!==null;
   document.getElementById('resetBtn').style.display=ov?'':'none';
-  var phi=effPhi();
-  var p1=document.getElementById('phi1Val'),p2=document.getElementById('phi2Val');
-  p1.textContent=phi[0].toFixed(2);
-  p2.textContent=phi[1].toFixed(2);
-  p1.className=p2.className='phi-val'+(ov?' overridden':'');
+  var mn=measNoiseOverride!==null?measNoiseOverride:DEFAULT_MEAS;
+  var pn=procNoiseOverride!==null?procNoiseOverride:DEFAULT_PROC;
+  document.getElementById('measVal').textContent=mn.toFixed(2);
+  document.getElementById('procVal').textContent=pn.toFixed(2);
+  document.getElementById('measVal').className='phi-val'+(measNoiseOverride!==null?' overridden':'');
+  document.getElementById('procVal').className='phi-val'+(procNoiseOverride!==null?' overridden':'');
 }
 
 /* Pan/zoom limits: never beyond the data (plus the prediction point) */
@@ -654,7 +633,7 @@ function updateZoomLimits(){
   if(entries.length===0){lim.min=undefined;lim.max=undefined;return}
   var first=parseDT(entries[0].date).getTime();
   var last=parseDT(entries[entries.length-1].date).getTime();
-  var pred=chart.data.datasets[2].data;
+  var pred=chart.data.datasets[4].data;
   var maxX=pred.length?Math.max(last,pred[0].x):last;
   lim.min=first-86400000;
   lim.max=maxX+86400000*3;
@@ -665,8 +644,12 @@ function autoPredict(keepZoom){
   var target=dateEl.value;
   if(!target||entries.length<2){
     document.getElementById('predResult').innerHTML='<span style="color:var(--text2)">—</span>';
-    chart.data.datasets[2].data=[];
-    chart.data.datasets[3].data=[];
+    var curves=buildFitCurves(null);
+    chart.data.datasets[1].data=curves.low;
+    chart.data.datasets[2].data=curves.high;
+    chart.data.datasets[3].data=curves.mean;
+    chart.data.datasets[4].data=[];
+    chart.data.datasets[5].data=[];
     updateZoomLimits();
     chart.update();
     return;
@@ -675,9 +658,12 @@ function autoPredict(keepZoom){
   if(!result){
     document.getElementById('predResult').innerHTML=
       '<span style="color:var(--text2)">after '+entries[entries.length-1].date+'</span>';
-    chart.data.datasets[1].data=computeFitCurve(entries); // drop stale forecast
-    chart.data.datasets[2].data=[];
-    chart.data.datasets[3].data=[];
+    var curves=buildFitCurves(null);
+    chart.data.datasets[1].data=curves.low;
+    chart.data.datasets[2].data=curves.high;
+    chart.data.datasets[3].data=curves.mean;
+    chart.data.datasets[4].data=[];
+    chart.data.datasets[5].data=[];
     updateZoomLimits();
     chart.update();
     return;
@@ -692,22 +678,25 @@ function autoPredict(keepZoom){
   var predPoint={
     x:new Date(target+'T12:00:00').getTime(),y:result.predicted,label:'Prediction: '+target
   };
-  chart.data.datasets[2].data=[predPoint];
+  chart.data.datasets[4].data=[predPoint];
   updateZoomLimits();
 
-  // extend the AR(2) curve past the data with the forecast to the target
-  chart.data.datasets[1].data=computeFitCurve(entries).concat(forecastCurve(target));
+  // extend fit curves with the forecast to the target
+  var curves=buildFitCurves(target);
+  chart.data.datasets[1].data=curves.low;
+  chart.data.datasets[2].data=curves.high;
+  chart.data.datasets[3].data=curves.mean;
 
   // vertical line at the target date (y span generous; clipped to chart area)
   var ws=entries.map(function(e){return e.weight});
   var loY=Math.min(Math.min.apply(null,ws),result.predicted)-10;
   var hiY=Math.max(Math.max.apply(null,ws),result.predicted)+10;
-  chart.data.datasets[3].data=[
+  chart.data.datasets[5].data=[
     {x:predPoint.x,y:loY},
     {x:predPoint.x,y:hiY}
   ];
 
-  // If pred point off screen, zoom to include it (not while tweaking phi)
+  // If pred point off screen, zoom to include it (not when keepZoom)
   var curMax=chart.scales.x.max;
   if(!keepZoom&&predPoint.x>curMax){
     chart.zoomScale('x',{min:chart.scales.x.min,max:predPoint.x+86400000*3},'default');
@@ -744,23 +733,22 @@ function addWeight(){
   toast(updated?'Updated!':'Added!');
 }
 
-function onPhiChange(){
-  phiOverride=[
-    parseInt(document.getElementById('phi1Slider').value,10)/1000,
-    parseInt(document.getElementById('phi2Slider').value,10)/1000
-  ];
-  updatePhiUI();
+function onNoiseChange(){
+  measNoiseOverride=parseInt(document.getElementById('measSlider').value,10)/100;
+  procNoiseOverride=parseInt(document.getElementById('procSlider').value,10)/100;
+  updateNoiseUI();
   updateChart(true);
   saveSettings();
 }
 
-function resetPhi(){
-  phiOverride=null;
+function resetNoise(){
+  measNoiseOverride=null;
+  procNoiseOverride=null;
   if(model!==null){
-    document.getElementById('phi1Slider').value=Math.round(model.phi1*1000);
-    document.getElementById('phi2Slider').value=Math.round(model.phi2*1000);
+    document.getElementById('measSlider').value=Math.round(model.mn*100);
+    document.getElementById('procSlider').value=Math.round(model.pn*100);
   }
-  updatePhiUI();
+  updateNoiseUI();
   updateChart(true);
   saveSettings();
 }
@@ -1031,13 +1019,15 @@ function init(){
     document.getElementById('predDate').value=predD.toISOString().slice(0,10);
   }
 
-  // Restore phi overrides
-  if(Array.isArray(settings.phiOverride)&&settings.phiOverride.length===2&&
-     isFinite(settings.phiOverride[0])&&isFinite(settings.phiOverride[1])){
-    phiOverride=[+settings.phiOverride[0],+settings.phiOverride[1]];
-    document.getElementById('phi1Slider').value=Math.round(phiOverride[0]*1000);
-    document.getElementById('phi2Slider').value=Math.round(phiOverride[1]*1000);
-    updatePhiUI();
+  // Restore noise overrides
+  if(settings.measNoiseOverride!==null&&isFinite(settings.measNoiseOverride))
+    measNoiseOverride=+settings.measNoiseOverride;
+  if(settings.procNoiseOverride!==null&&isFinite(settings.procNoiseOverride))
+    procNoiseOverride=+settings.procNoiseOverride;
+  if(measNoiseOverride!==null){
+    document.getElementById('measSlider').value=Math.round(measNoiseOverride*100);
+    document.getElementById('procSlider').value=Math.round((procNoiseOverride||DEFAULT_PROC)*100);
+    updateNoiseUI();
   }
 
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
@@ -1045,7 +1035,7 @@ function init(){
 
   initChart();
 
-  if(entries.length>0){updateChart()}else{chart.update();updateFittedStats();updatePhiUI();autoPredict()}
+  if(entries.length>0){updateChart()}else{chart.update();updateModelStats();updateNoiseUI();autoPredict()}
 
   // Restore last session's zoom window (clamped to current pan limits)
   if(entries.length>0&&settings.zoom&&
