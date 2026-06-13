@@ -766,6 +766,7 @@ function zoomPreset(days){
   var cx=Math.max(last-span/2,mid);
   chart.zoomScale('x',{min:cx-span/2,max:cx+span/2},'none');
   autoScaleY(chart);
+  syncPanSlider();
   saveSettings();
 }
 
@@ -775,6 +776,7 @@ function zoomAll(){
   chart.resetZoom();
   chart.update('none');
   autoScaleY(chart);
+  syncPanSlider();
   saveSettings();
 }
 
