@@ -199,36 +199,7 @@ input[type=range]::-moz-range-thumb{
   cursor:pointer;padding:4px 6px;font-family:inherit;line-height:1;
 }
 .gear-btn:active{opacity:0.7}
-
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;
-  display:none;align-items:center;justify-content:center;
-}
-.modal-overlay.show{display:flex}
-.modal{
-  background:var(--surface);border:1px solid rgba(255,255,255,0.1);
-  border-radius:var(--radius);width:min(320px,92vw);max-height:85vh;
-  max-height:85dvh;overflow-y:auto;
-}
-.modal-head{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);
-}
-.modal-head h2{font-size:0.9rem;font-weight:700}
-.modal-close{
-  background:transparent;border:none;color:var(--text2);
-  font-size:1rem;cursor:pointer;padding:2px 6px;font-family:inherit;
-}
-.modal-body{padding:14px;display:flex;flex-direction:column;gap:10px}
-.modal-btn{
-  width:100%;background:var(--surface2);color:var(--text);
-  border:1px solid rgba(255,255,255,0.1);text-align:left;
-}
-.modal-btn.danger{color:var(--danger);border-color:rgba(239,83,80,0.4)}
-.modal-note{font-size:0.65rem;color:var(--text2);line-height:1.6;-webkit-user-select:text;user-select:text}
-.modal-note a{color:var(--accent)}
-.modal-note code{background:var(--surface2);padding:1px 4px;border-radius:4px}
-
+.gear-btn.active{color:var(--accent)}
 
 
 
@@ -294,7 +265,7 @@ input[type=range]::-moz-range-thumb{
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(1.3)" title="Zoom in"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6.5 4v5M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(0.7)" title="Zoom out"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="zoomAll()" title="Show all data"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 3v2M2 3h2M14 3h-2M14 3v2M2 13v-2M2 13h2M14 13h-2M14 13v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
-  </span><span class="zoom-sep"></span><span style="display:flex;align-items:center;gap:4px"><button class="slider-toggle-btn" id="sliderToggle" onclick="toggleSliders()" title="Kalman filter controls">σ</button><button class="gear-btn" onclick="openSettings()" title="Settings">⚙</button><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button></span></header>
+  </span><span class="zoom-sep"></span><span style="display:flex;align-items:center;gap:4px"><button class="slider-toggle-btn" id="sliderToggle" onclick="toggleSliders()" title="Kalman filter controls">σ</button><button class="gear-btn" id="settingsToggle" onclick="toggleSettings()" title="Settings">⚙</button><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button></span></header>
 
 <div id="noiseBar" style="display:none">
   <div class="noise-row">
@@ -309,7 +280,19 @@ input[type=range]::-moz-range-thumb{
     <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
   </div>
 </div>
-
+<div id="settingsBar" style="display:none">
+    <div class="noise-row">
+      <label style="font-size:0.72rem;color:var(--text2);font-weight:600;width:auto">Unit</label>
+      <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:6px 0 0 6px">lbs</button>
+      <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:0 6px 6px 0">kg</button>
+    </div>
+    <div class="noise-row">
+      <button class="btn" onclick="exportData()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:700">⬇ Export</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:700">⬆ Import</button>
+      <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
+      <button class="btn" onclick="clearData()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--danger);border:1px solid rgba(239,83,80,0.4);border-radius:6px;font-weight:700">🗑 Clear</button>
+    </div>
+  </div>
 <section class="chart-area">
   <canvas id="weightChart"></canvas>
   <div class="panic-wrapper" id="rangeWidget">
@@ -359,30 +342,7 @@ input[type=range]::-moz-range-thumb{
 
 <div class="toast" id="toast"></div>
 
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>⚙ Settings</h2>
-      <button class="modal-close" onclick="closeSettings()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="ctrl-row" style="margin-bottom:6px">
-        <label style="font-size:0.72rem;color:var(--text2);width:auto;font-weight:600">Display</label>
-        <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:6px 0 0 6px">lbs</button>
-        <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:0 6px 6px 0">kg</button>
-      </div>
-      <button class="btn modal-btn" onclick="exportData()">⬇ &nbsp;Export data (.txt)</button>
-      <button class="btn modal-btn" onclick="document.getElementById('importFile').click()">⬆ &nbsp;Import data</button>
-      <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
-      <button class="btn modal-btn danger" onclick="clearData()">🗑 &nbsp;Clear all data</button>
-      <p class="modal-note">Export/import uses the <a href="https://github.com/QuantumPhysique/trale" target="_blank" rel="noopener">trale</a> backup format — one entry per line, e.g.<br>
-      <code>2025-12-24T16:00 67.9</code><br>
-      Lines starting with <code>#</code> are ignored.</p>
-    </div>
-  </div>
-</div>
 
-<script>
 /* hammer.js v2.0.8 */
 /*! Hammer.JS - v2.0.7 - 2016-04-22
  * http://hammerjs.github.io/
@@ -988,12 +948,10 @@ function autoPredictData(keepZoom){
     updateGoalData(false);
     return false;
   }
-  var targDs=new Date(target+'T12:00:00')
-    .toLocaleDateString(void 0,{month:'short',day:'numeric'});
   var predKg=result.predicted,predDisplay=kgToDisplay(predKg);
   document.getElementById('predResult').innerHTML=
     '<span class="val">'+predDisplay.toFixed(1)+'</span>'+
-    '<span class="unit"> '+displayUnitLabel+' on '+targDs+' ('+result.daysDiff+'d)</span>';
+    '<span class="unit"> '+displayUnitLabel+' in '+result.daysDiff+'d</span>';
 
   var predPoint={
     x:new Date(target+'T12:00:00').getTime(),y:predDisplay,label:'Prediction: '+target
@@ -1176,12 +1134,22 @@ function setUnit(u){
   syncUnitUI();
   // Rebuild the chart display with the new unit
   updateChart(true);
-  closeSettings();
+  document.getElementById('settingsBar').style.display='none';document.getElementById('settingsToggle').className='gear-btn';
   saveSettings();
 }
 
-function openSettings(){document.getElementById('settingsModal').classList.add('show')}
-function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
+function toggleSettings(){
+  var el=document.getElementById('settingsBar');
+  var btn=document.getElementById('settingsToggle');
+  var show=el.style.display==='none';
+  // close noise bar if open
+  if(show){
+    document.getElementById('noiseBar').style.display='none';
+    document.getElementById('sliderToggle').className='slider-toggle-btn';
+  }
+  el.style.display=show?'':'none';
+  btn.className='gear-btn'+(show?' active':'');
+}
 
 function exportData(){
   if(entries.length===0){toast('No data to export');return}
@@ -1239,7 +1207,7 @@ function importData(input){
     entries.sort(function(a,b){return a.date.localeCompare(b.date)});
     saveData(entries);
     updateChart();
-    closeSettings();
+    document.getElementById('settingsBar').style.display='none';document.getElementById('settingsToggle').className='gear-btn';
     toast('Imported '+imported+(skipped?' ('+skipped+' skipped)':''));
   };
   reader.readAsText(file);
@@ -1293,7 +1261,7 @@ function clearData(){
   entries=[];
   saveData(entries);
   updateChart();
-  closeSettings();
+  document.getElementById('settingsBar').style.display='none';document.getElementById('settingsToggle').className='gear-btn';
   toast('All data cleared');
 }
 
@@ -1495,11 +1463,8 @@ function init(){
     if(e.key==='Enter')addWeight();
   });
 
-  document.getElementById('settingsModal').addEventListener('click',function(e){
-    if(e.target===this)closeSettings();
-  });
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){closeSettings();cancelPointEdit()}
+    if(e.key==='Escape'){cancelPointEdit()}
   });
   document.getElementById('goalWeight').addEventListener('keydown',function(e){if(e.key==='Enter')onGoalChange();});
   document.getElementById('editWeight').addEventListener('keydown',function(e){
