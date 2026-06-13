@@ -1446,7 +1446,7 @@ function init(){
     var zmax=zl.max!==undefined?Math.min(settings.zoom.max,zl.max):settings.zoom.max;
     if(zmax>zmin){
       chart.zoomScale('x',{min:zmin,max:zmax},'none');
-      autoScaleY(chart);
+      // Y already set by updateChart; no autoScaleY here
     }
   }
 
