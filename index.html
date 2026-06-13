@@ -551,9 +551,7 @@ function initChart(){
         openPointEdit(dp.label,dp.y);
       },
       plugins:{
-        legend:{position:'top',labels:{color:'#a0a0b8',usePointStyle:true,padding:12,font:{size:10},
-          boxWidth:12,boxHeight:6,
-          filter:function(item){return item.datasetIndex!==1&&item.datasetIndex!==2&&item.datasetIndex!==5}}},
+        legend:{display:false},
         tooltip:{
           filter:function(item){return item.datasetIndex!==1&&item.datasetIndex!==2&&item.datasetIndex!==5},
           callbacks:{label:function(ctx){var dp=ctx.raw;var d=new Date(dp.x);var ds=d.toLocaleDateString(void 0,{weekday:'short',month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return ds+': '+dp.y.toFixed(1)}}},
