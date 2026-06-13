@@ -64,25 +64,23 @@ header h1{
 
 /* ── Range selector (dual-handle x-axis slider) ── */
 .panic-wrapper{
-  position:absolute;bottom:3px;left:6px;right:6px;height:20px;z-index:10;
+  position:absolute;bottom:2px;left:6px;right:6px;height:28px;z-index:10;
   touch-action:none;cursor:pointer;
 }
 .range-track{
-  position:absolute;left:0;right:0;top:8px;height:4px;
+  position:absolute;left:0;right:0;top:12px;height:4px;
   background:rgba(255,255,255,0.08);border-radius:2px;
 }
 .range-fill{
-  position:absolute;top:8px;height:4px;
-  background:rgba(79,195,247,0.35);border-radius:2px;
+  position:absolute;top:10px;height:8px;
+  background:rgba(79,195,247,0.25);border-radius:1px;pointer-events:auto;
 }
 .range-handle{
-  position:absolute;top:3px;width:14px;height:14px;margin-left:-7px;
-  border-radius:50%;background:var(--accent);border:2px solid var(--bg);
-  box-shadow:0 0 4px rgba(0,0,0,0.4);touch-action:none;cursor:ew-resize;
-  z-index:11;
+  position:absolute;top:4px;width:4px;height:20px;margin-left:-2px;
+  background:var(--accent);border-radius:2px;
+  box-shadow:0 0 4px rgba(0,0,0,0.3);touch-action:none;cursor:col-resize;
+  z-index:11;pointer-events:auto;
 }
-.range-handle:active{transform:scale(1.2)}
-.range-handle.hidden{display:none}
 
 /* ── Zoom toolbar ── */
 .zoom-toolbar{
