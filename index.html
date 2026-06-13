@@ -103,27 +103,16 @@ header h1{
 .ctrl-row>label{flex-shrink:0;font-size:0.7rem;color:var(--text2);font-weight:600;width:16px;text-align:center}
 
 input[type=date],
-input[type=datetime-local],
+input[type=datetime-local]{
+  padding:8px 28px 8px 8px;background:var(--surface2);border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius-sm);color:var(--text);font-size:0.85rem;
+  font-family:inherit;-webkit-appearance:none;outline:none;min-width:0;
+}
 input[type=number]{
   padding:8px 8px;background:var(--surface2);border:1px solid rgba(255,255,255,0.08);
   border-radius:var(--radius-sm);color:var(--text);font-size:0.85rem;
   font-family:inherit;-webkit-appearance:none;outline:none;min-width:0;
-  position:relative;
 }
-/* make the native calendar picker invisible and cover the whole input
-   so tapping anywhere opens the picker, without obscuring the date text */
-input[type=datetime-local]::-webkit-calendar-picker-indicator,
-input[type=date]::-webkit-calendar-picker-indicator{
-  opacity:0!important;position:absolute!important;left:0!important;top:0!important;
-  width:100%!important;height:100%!important;margin:0!important;padding:0!important;
-  cursor:pointer!important;z-index:1;
-}
-/* ensure the text sits in front of the invisible overlay */
-input[type=datetime-local]::-webkit-datetime-edit,
-input[type=date]::-webkit-datetime-edit{position:relative;z-index:2}
-input[type=datetime-local]::-webkit-clear-button,
-input[type=date]::-webkit-clear-button,
-input[type=datetime-local]::-webkit-inner-spin-button{display:none}
 input:focus{border-color:var(--accent)}
 
 input[type=number]{text-align:center}
