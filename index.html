@@ -548,7 +548,8 @@ function buildFitCurves(targetDateStr){
   if(model===null||!model.results.length)return{mean:[],low:[],high:[]};
   var res=model.results,t0=model.t0;
   var pn=procNoiseOverride!==null?Math.max(0.001,procNoiseOverride):DEFAULT_PROC;
-  var maxD=res[res.length-1].t;
+  var lastT=res[res.length-1].t;
+  var maxD=lastT;
   if(targetDateStr){
     var tT=(new Date(targetDateStr+'T12:00').getTime()-t0)/86400000;
     if(tT>maxD)maxD=Math.ceil(tT);
@@ -558,15 +559,15 @@ function buildFitCurves(targetDateStr){
   for(var d=0;d<=maxD;d++){
     while(idx<res.length-1&&res[idx+1].t<=d)idx++;
     var m,v;
-    if(d<=res[idx].t||idx===res.length-1){
+    if(d<=res[idx].t){
+      // exactly at or before a known state
       m=res[idx].mean;v=res[idx].var;
     }else{
+      // project forward from nearest prior state
       var dt=d-res[idx].t;
       var dt2=dt*dt,dt3=dt2*dt;
-      var st0=res[idx].mean,st1=res[idx].x1;
-      var P00=res[idx].var,P01=res[idx].P01,P11=res[idx].P11;
-      m=st0+st1*dt;
-      v=P00+2*dt*P01+dt2*P11+pn*pn*dt3/3;
+      m=res[idx].mean+res[idx].x1*dt;
+      v=res[idx].var+2*dt*res[idx].P01+dt2*res[idx].P11+pn*pn*dt3/3;
     }
     var s=Math.sqrt(Math.max(v,0));
     var x=t0+d*86400000;
