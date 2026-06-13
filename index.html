@@ -201,6 +201,17 @@ input[type=range]::-webkit-slider-thumb{
 .modal-note a{color:var(--accent)}
 .modal-note code{background:var(--surface2);padding:1px 4px;border-radius:4px}
 
+
+
+/* ── Noise slider toggle ── */
+.btn-toggle-sliders{
+  background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text2);
+  font-size:0.65rem;font-weight:700;font-family:inherit;padding:4px 12px;
+  border-radius:14px;cursor:pointer;flex:1;transition:background 0.1s,color 0.1s;
+}
+.btn-toggle-sliders:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+.btn-toggle-sliders.active{background:rgba(79,195,247,0.12);color:var(--accent);border-color:rgba(79,195,247,0.3)}
+
 /* ── Toast ── */
 .toast{
   position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
@@ -288,6 +299,7 @@ input[type=range]::-webkit-slider-thumb{
       <button class="btn btn-add" onclick="addWeight()">+</button>
     </div>
 
+  <div id="noiseControls" style="display:none">
     <div class="ctrl-row">
       <label title="Measurement noise">σ<sub>m</sub></label>
       <input type="range" id="measSlider" min="2" max="230" step="1" value="23" oninput="onNoiseChange()" style="flex:1">
@@ -299,6 +311,7 @@ input[type=range]::-webkit-slider-thumb{
       <span class="phi-val" id="procVal">0.05</span>
       <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
     </div>
+  </div>
 
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
@@ -307,8 +320,12 @@ input[type=range]::-webkit-slider-thumb{
     </div>
     <div class="ctrl-row">
       <label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
-      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:1;min-width:0">
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:2;min-width:0">
       <span class="pred-display" id="goalResult">—</span>
+    </div>
+    <div class="ctrl-row">
+      <button class="btn-toggle-sliders" id="sliderToggle" onclick="toggleSliders()" title="Show Kalman filter controls">⚙ ↑</button>
+    </div>
     </div>
   </div>
 
@@ -434,6 +451,7 @@ function saveSettings(){
       measNoiseOverride:measNoiseOverride,
       procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
+      sliderShow:document.getElementById('noiseControls').style.display!=='none',
       zoom:zoom
     }));
   }catch(e){}
@@ -1014,6 +1032,17 @@ function autoPredictData(keepZoom){
 
 /* Compute and display the goal weight prediction. Called from
    autoPredictData and from the goalWeight onchange. */
+
+function toggleSliders(){
+  var el=document.getElementById('noiseControls');
+  var btn=document.getElementById('sliderToggle');
+  var show=el.style.display==='none';
+  el.style.display=show?'':'none';
+  btn.className='btn-toggle-sliders'+(show?' active':'');
+  btn.innerHTML=show?'⚙ ↓':'⚙ ↑';
+  saveSettings();
+}
+
 function updateGoalData(save){
   if(!chart)return;
   var el=document.getElementById('goalWeight');
@@ -1033,8 +1062,11 @@ function updateGoalData(save){
     chart.data.datasets[7].data=[];
     return;
   }
+  var gd=new Date(result.date+'T12:00:00');
+  var gs=gd.getFullYear()===new Date().getFullYear()?
+    (gd.getMonth()+1)+'/'+gd.getDate():result.date;
   document.getElementById('goalResult').innerHTML=
-    '<span class="val">'+result.date+'</span>'+
+    '<span class="val">'+gs+'</span>'+
     '<span class="unit"> in '+result.days+'d</span>';
   var gx=new Date(result.date+'T12:00:00').getTime();
   chart.data.datasets[6].data=[{x:gx,y:+target.toFixed(1)}];
@@ -1410,6 +1442,13 @@ function init(){
     updateNoiseUI();
   }
 
+  // Restore noise slider visibility
+  if(settings.sliderShow){
+    document.getElementById('noiseControls').style.display='';
+    document.getElementById('sliderToggle').className='btn-toggle-sliders active';
+    document.getElementById('sliderToggle').innerHTML='⚙ ↓';
+  }
+
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
   createManifest();
 
@@ -1451,6 +1490,7 @@ function init(){
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape'){closeSettings();cancelPointEdit()}
   });
+  document.getElementById('goalWeight').addEventListener('keydown',function(e){if(e.key==='Enter')onGoalChange();});
   document.getElementById('editWeight').addEventListener('keydown',function(e){
     if(e.key==='Enter')savePoint();
   });
