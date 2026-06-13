@@ -911,6 +911,12 @@ function updateZoomLimits(){
   lim.max=maxX+86400000*3;
 }
 
+/* Remove active highlight from all zoom preset buttons */
+function clearZoomHighlights(){
+  var btns=document.querySelectorAll('.zoom-btn[onclick*="zoomPreset"]');
+  for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+}
+
 /* Zoom to show N days around the latest data point */
 function zoomPreset(days){
   if(!chart||entries.length<2)return;
