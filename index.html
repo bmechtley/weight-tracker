@@ -286,8 +286,10 @@ input[type=range]::-moz-range-thumb{
 </div>
 <div id="settingsBar" style="display:none">
     <div class="noise-row">
+      <span style="display:flex;gap:0">
       <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:5px 0 0 5px">lbs</button>
       <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:0 5px 5px 0">kg</button>
+      </span>
       <button class="btn" onclick="exportData()" style="flex:1;text-align:center;padding:4px 6px;font-size:0.65rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:5px;font-weight:700"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 1v9M4 6l4 4 4-4"/><path d="M2 12v2c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-2"/></svg></button>
       <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:1;text-align:center;padding:4px 6px;font-size:0.65rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:5px;font-weight:700"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 12V3M4 8l4-4 4 4"/><path d="M2 14h12"/></svg></button>
       <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
@@ -1136,7 +1138,6 @@ function setUnit(u){
   syncUnitUI();
   // Rebuild the chart display with the new unit
   updateChart(true);
-  document.getElementById('settingsBar').style.display='none';document.getElementById('settingsToggle').className='gear-btn';
   saveSettings();
 }
 
