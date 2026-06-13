@@ -62,6 +62,39 @@ header h1{
 }
 .chart-area canvas{width:100%!important;height:100%!important}
 
+/* ── Pan slider under the x-axis ── */
+.panic-wrapper{
+  position:absolute;bottom:2px;left:8px;right:8px;z-index:10;
+  pointer-events:none;
+}
+#panSlider{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:14px;
+  background:transparent;
+  cursor:pointer;pointer-events:auto;
+  outline:none;margin:0;padding:0;
+  border:none;border-radius:0;
+}
+#panSlider::-webkit-slider-runnable-track{
+  height:3px;background:rgba(255,255,255,0.1);border-radius:2px;
+}
+#panSlider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg);
+  margin-top:-5.5px;box-shadow:0 0 4px rgba(0,0,0,0.4);
+  cursor:pointer;transition:transform 0.1s;
+}
+#panSlider::-webkit-slider-thumb:active{transform:scale(1.2)}
+#panSlider::-moz-range-track{
+  height:3px;background:rgba(255,255,255,0.1);border-radius:2px;border:none;
+}
+#panSlider::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg);
+  cursor:pointer;
+}
+
 /* ── Zoom toolbar ── */
 .zoom-toolbar{
   position:absolute;top:6px;right:6px;z-index:10;
@@ -238,6 +271,9 @@ input[type=range]::-webkit-slider-thumb{
 
 <section class="chart-area">
   <canvas id="weightChart"></canvas>
+  <div class="panic-wrapper">
+    <input type="range" id="panSlider" min="0" max="1000" step="1" value="500" oninput="onPanSliderInput(this)">
+  </div>
   <div class="zoom-toolbar">
     <button class="zoom-btn" onclick="zoomPreset(7)" title="1 week">1w</button>
     <button class="zoom-btn" onclick="zoomPreset(30)" title="1 month">1m</button>
@@ -529,11 +565,11 @@ function initChart(){
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoomComplete:function(ctx){autoScaleY(ctx.chart);saveSettings()}
+            onZoomComplete:function(ctx){autoScaleY(ctx.chart);syncPanSlider();saveSettings()}
           },
           pan:{
             enabled:true,mode:'x',
-            onPanComplete:function(ctx){autoScaleY(ctx.chart);saveSettings()}
+            onPanComplete:function(ctx){autoScaleY(ctx.chart);syncPanSlider();saveSettings()}
           },
           limits:{x:{minRange:86400000*2}}
         }
@@ -641,6 +677,7 @@ function updateChart(keepZoom){
   updateModelStats();
   autoPredictData(keepZoom);
   chart.update('none');
+  syncPanSlider();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -668,6 +705,43 @@ function updateNoiseUI(){
   document.getElementById('procVal').textContent=pn.toFixed(2);
   document.getElementById('measVal').className='phi-val'+(measNoiseOverride!==null?' overridden':'');
   document.getElementById('procVal').className='phi-val'+(procNoiseOverride!==null?' overridden':'');
+}
+
+/* Update the pan slider thumb to reflect the current X view window.
+   Also called on init and after zoom/pan. */
+function syncPanSlider(){
+  var el=document.getElementById('panSlider');
+  var xs=chart&&chart.scales&&chart.scales.x;
+  if(!xs||entries.length<2){el.style.opacity='0';return}
+  el.style.opacity='1';
+  var lo=parseDT(entries[0].date).getTime();
+  var hi=parseDT(entries[entries.length-1].date).getTime();
+  var pred=chart.data.datasets[4].data[0];
+  if(pred)hi=Math.max(hi,pred.x);
+  var span=hi-lo;
+  if(span<86400000)return;
+  var mid=(xs.min+xs.max)/2;
+  el.value=Math.round(((mid-lo)/span)*1000);
+}
+
+/* User dragged the pan slider → center the current view at the
+   proportional position. */
+function onPanSliderInput(el){
+  var xs=chart.scales.x;
+  if(!xs)return;
+  var viewSpan=xs.max-xs.min;
+  var lo=parseDT(entries[0].date).getTime();
+  var hi=parseDT(entries[entries.length-1].date).getTime();
+  var pred=chart.data.datasets[4].data[0];
+  if(pred)hi=Math.max(hi,pred.x);
+  var span=hi-lo;
+  var ratio=parseInt(el.value,10)/1000;
+  var target=lo+ratio*span;
+  var min=target-viewSpan/2;
+  var max=target+viewSpan/2;
+  chart.zoomScale('x',{min:min,max:max},'none');
+  autoScaleY(chart);
+  saveSettings();
 }
 
 /* Pan/zoom limits: never beyond the data (plus the prediction point) */
@@ -785,6 +859,7 @@ function autoPredictData(keepZoom){
 function onPredDateChange(){
   autoPredictData(false);
   chart.update('none');
+  syncPanSlider();
   saveSettings();
 }
 
@@ -1110,7 +1185,11 @@ function init(){
 
   initChart();
 
-  if(entries.length>0){updateChart()}else{chart.update();updateModelStats();updateNoiseUI();autoPredict()}
+  if(entries.length>0){updateChart()}else{
+    chart.update();updateModelStats();updateNoiseUI();autoPredictData(false);chart.update('none')
+  }
+
+  syncPanSlider();
 
   // Restore last session's zoom window (clamped to current pan limits)
   if(entries.length>0&&settings.zoom&&
@@ -1124,6 +1203,9 @@ function init(){
       autoScaleY(chart);
     }
   }
+
+  // sync slider after zoom restore too
+  syncPanSlider();
 
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
