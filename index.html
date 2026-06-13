@@ -120,6 +120,9 @@ input[type=number]{text-align:center}
 .btn-add{background:var(--accent);color:#000}
 .btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(239,83,80,0.5)}
 .btn-cancel{background:var(--surface2);color:var(--text2);border:1px solid rgba(255,255,255,0.1)}
+.unit-btn{background:var(--surface2);color:var(--text2);border:1px solid rgba(255,255,255,0.12);font-family:inherit;font-weight:700;cursor:pointer;transition:background 0.1s,color 0.1s}
+.unit-btn:active{opacity:0.8}
+.unit-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
 .btn-reset{
   background:transparent;color:var(--accent);border:1px solid var(--accent);
   padding:4px 8px;font-size:0.7rem;border-radius:12px;flex-shrink:0;
@@ -300,7 +303,12 @@ input[type=range]::-webkit-slider-thumb{
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
       <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:2;min-width:0">
-      <span class="pred-display" id="predResult">—</span>
+      <span class="pred-display" id="predResult" style="color:#e1bee7">—</span>
+    </div>
+    <div class="ctrl-row">
+      <label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:1;min-width:0">
+      <span class="pred-display" id="goalResult">—</span>
     </div>
   </div>
 
@@ -330,7 +338,8 @@ input[type=range]::-webkit-slider-thumb{
     <div class="modal-body">
       <div class="ctrl-row" style="margin-bottom:6px">
         <label style="font-size:0.72rem;color:var(--text2);width:auto;font-weight:600">Display</label>
-        <button class="btn unit-toggle" id="unitBtn" onclick="toggleUnit()" style="flex:1;text-align:center;font-size:0.75rem;background:var(--surface2);color:var(--text);border:1px solid rgba(255,255,255,0.1)"></button>
+        <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:6px 0 0 6px">lbs</button>
+        <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:0 6px 6px 0">kg</button>
       </div>
       <button class="btn modal-btn" onclick="exportData()">⬇ &nbsp;Export data (.txt)</button>
       <button class="btn modal-btn" onclick="document.getElementById('importFile').click()">⬆ &nbsp;Import data</button>
@@ -536,6 +545,30 @@ function predictWeight(targetDateStr){
   };
 }
 
+/* Predict when the Kalman-filter estimate will reach targetWeight
+   (in display units). Returns {days,date,never} or null if model
+   has no rate estimate. */
+function predictGoal(targetDisplay){
+  if(model===null)return null;
+  var targetKg=displayToKg(targetDisplay);
+  var x=model.x,lastE=entries[entries.length-1];
+  var rate=x[1]; // kg/day
+  var targetReached=false,days=0;
+  if(Math.abs(rate)<0.001)return{never:true};
+  var diff=targetKg-x[0];
+  if(rate>0&&diff<0)return{never:true};
+  if(rate<0&&diff>0)return{never:true};
+  days=diff/rate;
+  if(days<=0)return{never:true};
+  var d=new Date(parseDT(lastE.date).getTime()+days*86400000);
+  return{
+    never:false,
+    days:Math.round(days),
+    date:d.toISOString().slice(0,10),
+    weight:Math.round(kgToDisplay(x[0]+x[1]*days)*10)/10
+  };
+}
+
 /* ═══════════════════════════════════════════════════════
    Chart
    ═══════════════════════════════════════════════════════ */
@@ -558,6 +591,10 @@ function initChart(){
         {label:'Target',data:[],borderColor:'#e1bee7',backgroundColor:'#e1bee7',
          pointRadius:3.5,pointHoverRadius:6,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
         {label:'predline',data:[],borderColor:'rgba(186,104,200,0.4)',backgroundColor:'transparent',
+         borderWidth:1,pointRadius:0,pointHitRadius:0,showLine:true,order:3},
+        {label:'Goal',data:[],borderColor:'#66bb6a',backgroundColor:'#66bb6a',
+         pointRadius:3.5,pointHoverRadius:6,pointStyle:'circle',pointBorderWidth:0,showLine:false,order:0},
+        {label:'goalline',data:[],borderColor:'rgba(102,187,106,0.35)',backgroundColor:'transparent',
          borderWidth:1,pointRadius:0,pointHitRadius:0,showLine:true,order:3}
       ]
     },
@@ -607,7 +644,7 @@ function autoScaleY(c){
   var xMin=xs.min,xMax=xs.max;
   var yMin=Infinity,yMax=-Infinity;
   c.data.datasets.forEach(function(ds,di){
-    if(!ds.data||ds.hidden||di===1||di===2||di===5)return;
+    if(!ds.data||ds.hidden||di===1||di===2||di===5||di===7)return;
     ds.data.forEach(function(pt){
       if(pt.x>=xMin&&pt.x<=xMax){if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y}
     });
@@ -687,6 +724,8 @@ function updateChart(keepZoom){
   chart.data.datasets[3].data=curves.mean;
   chart.data.datasets[4].data=[];
   chart.data.datasets[5].data=[];
+  chart.data.datasets[6].data=[];
+  chart.data.datasets[7].data=[];
 
   if(!keepZoom)chart.resetZoom();
   updateModelStats();
@@ -856,7 +895,9 @@ function updateZoomLimits(){
   var first=parseDT(entries[0].date).getTime();
   var last=parseDT(entries[entries.length-1].date).getTime();
   var pred=chart.data.datasets[4].data;
+  var goal=chart.data.datasets[6].data;
   var maxX=pred.length?Math.max(last,pred[0].x):last;
+  if(goal.length)maxX=Math.max(maxX,goal[0].x);
   lim.min=first-86400000;
   lim.max=maxX+86400000*3;
 }
@@ -899,6 +940,7 @@ function autoPredictData(keepZoom){
     chart.data.datasets[4].data=[];
     chart.data.datasets[5].data=[];
     updateZoomLimits();
+    updateGoalData(false);
     return false;
   }
   var result=predictWeight(target);
@@ -912,6 +954,7 @@ function autoPredictData(keepZoom){
     chart.data.datasets[4].data=[];
     chart.data.datasets[5].data=[];
     updateZoomLimits();
+    updateGoalData(false);
     return false;
   }
   var targDs=new Date(target+'T12:00:00')
@@ -957,10 +1000,57 @@ function autoPredictData(keepZoom){
   });
   if(predPoint.y<yMin)yMin=predPoint.y;
   if(predPoint.y>yMax)yMax=predPoint.y;
+
+  // Goal weight computation
+  updateGoalData(false);
+  var gPt=chart.data.datasets[6].data[0];
+  if(gPt){if(gPt.y<yMin)yMin=gPt.y;if(gPt.y>yMax)yMax=gPt.y}
+
   var pad=Math.max((yMax-yMin)*0.15,0.8);
   chart.scales.y.options.min=yMin-pad;
   chart.scales.y.options.max=yMax+pad;
   return true;
+}
+
+/* Compute and display the goal weight prediction. Called from
+   autoPredictData and from the goalWeight onchange. */
+function updateGoalData(save){
+  if(!chart)return;
+  var el=document.getElementById('goalWeight');
+  var target=parseFloat(el.value);
+  if(!target||isNaN(target)||target<=0||model===null){
+    document.getElementById('goalResult').innerHTML='<span style="color:var(--text2)">—</span>';
+    chart.data.datasets[6].data=[];
+    chart.data.datasets[7].data=[];
+    return;
+  }
+  var result=predictGoal(target);
+  if(!result||result.never){
+    var t=kgToDisplay(target);
+    document.getElementById('goalResult').innerHTML=
+      '<span style="color:var(--text2)">—</span>';
+    chart.data.datasets[6].data=[];
+    chart.data.datasets[7].data=[];
+    return;
+  }
+  document.getElementById('goalResult').innerHTML=
+    '<span class="val">'+result.date+'</span>'+
+    '<span class="unit"> in '+result.days+'d</span>';
+  var gx=new Date(result.date+'T12:00:00').getTime();
+  chart.data.datasets[6].data=[{x:gx,y:+target.toFixed(1)}];
+  // horizontal green line at goal weight
+  var lim=chart.options.plugins.zoom.limits.x;
+  chart.data.datasets[7].data=[
+    {x:lim.min,y:+target.toFixed(1)},
+    {x:gx,y:+target.toFixed(1)}
+  ];
+  if(save)saveSettings();
+}
+
+function onGoalChange(){
+  updateGoalData(true);
+  chart.update('none');
+  autoScaleY(chart);
 }
 
 /* External entry point for the date picker onChange */
@@ -1027,11 +1117,17 @@ function syncUnitUI(){
   wEl.step=displayUnit==='kg'?'0.1':'0.1';
   wEl.min=displayUnit==='kg'?'20':'40';
   wEl.max=displayUnit==='kg'?'230':'500';
-  document.getElementById('unitBtn').textContent=displayUnitLabel;
+  // Unit buttons in settings
+  var lbsBtn=document.getElementById('unitLbsBtn');
+  var kgBtn=document.getElementById('unitKgBtn');
+  if(lbsBtn){lbsBtn.className='btn unit-btn'+(displayUnit==='lb'?' active':'');kgBtn.className='btn unit-btn'+(displayUnit==='kg'?' active':'')}
+  // Goal weight input placeholder
+  document.getElementById('goalWeight').placeholder=displayUnitLabel;
 }
 
-function toggleUnit(){
-  displayUnit=displayUnit==='lb'?'kg':'lb';
+function setUnit(u){
+  if(u===displayUnit||(u!=='lb'&&u!=='kg'))return;
+  displayUnit=u;
   displayUnitLabel=displayUnit==='kg'?'kg':'lbs';
   syncUnitUI();
   // Rebuild the chart display with the new unit
@@ -1292,7 +1388,6 @@ function init(){
   // Display unit
   if(settings.displayUnit==='kg'||settings.displayUnit==='lb')displayUnit=settings.displayUnit;
   displayUnitLabel=displayUnit==='kg'?'kg':'lbs';
-  document.getElementById('unitBtn').textContent=displayUnitLabel;
   syncUnitUI();
 
   // Prediction date: restore saved target, else default 30 days out
