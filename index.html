@@ -83,12 +83,6 @@ header h1{
 }
 
 /* ── Zoom toolbar ── */
-.zoom-toolbar{
-  position:absolute;top:6px;right:6px;z-index:10;
-  display:flex;align-items:center;gap:2px;
-  background:rgba(26,26,46,0.75);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-  border-radius:8px;padding:2px 4px;border:1px solid rgba(255,255,255,0.08);
-}
 .zoom-btn{
   background:transparent;border:none;color:var(--text2);font-size:0.6rem;font-weight:700;
   font-family:inherit;padding:2px 5px;border-radius:5px;cursor:pointer;line-height:1.4;
@@ -221,8 +215,7 @@ input[type=range]::-webkit-slider-thumb{
 /* ── Landscape: narrow sidebar, controls stacked vertically ── */
 @media (orientation:landscape) and (max-height:500px){
   body{flex-direction:row}
-  header{display:none}
-  .gear-float{display:flex}
+  .gear-float{display:none}
   .chart-area{flex:1;margin:2px}
   .controls{
     width:130px;border-left:1px solid rgba(255,255,255,0.06);
@@ -244,8 +237,7 @@ input[type=range]::-webkit-slider-thumb{
 /* Desktop wider layout */
 @media (min-width:600px) and (min-height:500px){
   body{flex-direction:row}
-  header{display:none}
-  .gear-float{display:flex}
+  .gear-float{display:none}
   .chart-area{flex:1;margin:4px}
   .controls{
     width:280px;border-left:1px solid rgba(255,255,255,0.06);
@@ -256,12 +248,7 @@ input[type=range]::-webkit-slider-thumb{
 </head>
 <body>
 
-<header><h1>⚖ Weight Tracker</h1><span style="display:flex;align-items:center;gap:4px"><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button><button class="gear-btn" onclick="openSettings()" title="Settings">⚙</button></span></header>
-<button class="gear-float" onclick="openSettings()" title="Settings">⚙</button>
-
-<section class="chart-area">
-  <canvas id="weightChart"></canvas>
-  <div class="zoom-toolbar">
+<header><span style="display:flex;align-items:center;gap:2px">
     <button class="zoom-btn" onclick="zoomPreset(7)" title="1 week">1w</button>
     <button class="zoom-btn" onclick="zoomPreset(30)" title="1 month">1m</button>
     <button class="zoom-btn" onclick="zoomPreset(90)" title="3 months">3m</button>
@@ -271,7 +258,11 @@ input[type=range]::-webkit-slider-thumb{
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(1.3)" title="Zoom in"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6.5 4v5M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(0.7)" title="Zoom out"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="zoomAll()" title="Show all data"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 3v2M2 3h2M14 3h-2M14 3v2M2 13v-2M2 13h2M14 13h-2M14 13v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
-  </div>
+  </span><span style="display:flex;align-items:center;gap:4px"><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button><button class="gear-btn" onclick="openSettings()" title="Settings">⚙</button></span></header>
+<button class="gear-float" onclick="openSettings()" title="Settings">⚙</button>
+
+<section class="chart-area">
+  <canvas id="weightChart"></canvas>
   <div class="panic-wrapper" id="rangeWidget">
     <div class="range-track"></div>
     <div class="range-fill" id="rangeFill"></div>
@@ -299,7 +290,6 @@ input[type=range]::-webkit-slider-thumb{
       <label title="Process noise (lbs/day)">σ<sub>p</sub></label>
       <input type="range" id="procSlider" min="1" max="200" step="1" value="10" oninput="onNoiseChange()" style="flex:1">
       <span class="phi-val" id="procVal">0.10</span>
-      <span class="phi-fitted" id="noiseFittedLabel"></span>
       <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
     </div>
 
@@ -677,11 +667,6 @@ function updateChart(keepZoom){
    UI updates
    ═══════════════════════════════════════════════════════ */
 function updateModelStats(){
-  var fl=document.getElementById('noiseFittedLabel');
-  if(model!==null){
-    fl.textContent='σₘ='+model.mn.toFixed(2)+' σₚ='+model.pn.toFixed(2);
-  }else{fl.textContent='';}
-
   if(measNoiseOverride===null&&procNoiseOverride===null&&model!==null){
     document.getElementById('measSlider').value=Math.round(model.mn*100);
     document.getElementById('procSlider').value=Math.round(model.pn*100);
@@ -806,9 +791,12 @@ function applyRange(minX,maxX){
         min=Math.min(dragStartMax-86400000,Math.max(b.lo,dragStartMin+dr));
       }else if(dragMode==='right'){
         max=Math.max(dragStartMin+86400000,Math.min(b.hi,dragStartMax+dr));
-      }else{ // pan
+      }else{ // pan — preserve the window span, don't shrink at edges
+        var spanD=dragStartMax-dragStartMin;
         min=dragStartMin+dr;
         max=dragStartMax+dr;
+        if(min<b.lo){min=b.lo;max=b.lo+spanD}
+        if(max>b.hi){max=b.hi;min=b.hi-spanD}
       }
       applyRange(min,max);
       syncRangeWidget();
