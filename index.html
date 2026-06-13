@@ -315,13 +315,13 @@ input[type=range]::-webkit-slider-thumb{
 
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
-      <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:2;min-width:0">
-      <span class="pred-display" id="predResult" style="color:#e1bee7">—</span>
+      <input type="date" id="predDate" onchange="onPredDateChange()" style="width:140px;flex:none">
+      <span class="pred-display" id="predResult" style="color:#e1bee7;width:90px;flex:none">—</span>
     </div>
     <div class="ctrl-row">
       <label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
-      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="flex:2;min-width:0">
-      <span class="pred-display" id="goalResult">—</span>
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="width:140px;flex:none">
+      <span class="pred-display" id="goalResult" style="width:90px;flex:none">—</span>
     </div>
     <div class="ctrl-row">
       <button class="btn-toggle-sliders" id="sliderToggle" onclick="toggleSliders()" title="Show Kalman filter controls">⚙ ↑</button>
