@@ -1437,16 +1437,24 @@ function init(){
 
   syncRangeWidget();
 
-  // Restore last session's zoom window (clamped to current pan limits)
+  // Restore last session's zoom window (clamped to current pan limits).
+  // Set axis directly instead of chart.zoomScale to avoid the zoom
+  // plugin's beforeUpdate hook re-computing the Y axis from band data.
   if(entries.length>0&&settings.zoom&&
      isFinite(settings.zoom.min)&&isFinite(settings.zoom.max)&&
      settings.zoom.max>settings.zoom.min){
+    var xs=chart.scales.x;
     var zl=chart.options.plugins.zoom.limits.x;
     var zmin=zl.min!==undefined?Math.max(settings.zoom.min,zl.min):settings.zoom.min;
     var zmax=zl.max!==undefined?Math.min(settings.zoom.max,zl.max):settings.zoom.max;
     if(zmax>zmin){
-      chart.zoomScale('x',{min:zmin,max:zmax},'none');
-      // Y already set by updateChart; no autoScaleY here
+      // Preserve our Y lock
+      var yMin=chart.scales.y.options.min;
+      var yMax=chart.scales.y.options.max;
+      xs.options.min=zmin;xs.options.max=zmax;
+      chart.update('none');
+      chart.scales.y.options.min=yMin;chart.scales.y.options.max=yMax;
+      chart.update('none');
     }
   }
 
