@@ -286,14 +286,14 @@ input[type=range]::-webkit-slider-thumb{
     </div>
 
     <div class="ctrl-row">
-      <label title="Measurement noise (lbs)">σ<sub>m</sub></label>
-      <input type="range" id="measSlider" min="5" max="500" step="1" value="50" oninput="onNoiseChange()" style="flex:1">
-      <span class="phi-val" id="measVal">0.50</span>
+      <label title="Measurement noise">σ<sub>m</sub></label>
+      <input type="range" id="measSlider" min="2" max="230" step="1" value="23" oninput="onNoiseChange()" style="flex:1">
+      <span class="phi-val" id="measVal">0.23</span>
     </div>
     <div class="ctrl-row">
-      <label title="Process noise (lbs/day)">σ<sub>p</sub></label>
-      <input type="range" id="procSlider" min="1" max="200" step="1" value="10" oninput="onNoiseChange()" style="flex:1">
-      <span class="phi-val" id="procVal">0.10</span>
+      <label title="Process noise (per day)">σ<sub>p</sub></label>
+      <input type="range" id="procSlider" min="1" max="100" step="1" value="5" oninput="onNoiseChange()" style="flex:1">
+      <span class="phi-val" id="procVal">0.05</span>
       <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
     </div>
 
@@ -328,14 +328,17 @@ input[type=range]::-webkit-slider-thumb{
       <button class="modal-close" onclick="closeSettings()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="ctrl-row" style="margin-bottom:6px">
+        <label style="font-size:0.72rem;color:var(--text2);width:auto;font-weight:600">Display</label>
+        <button class="btn unit-toggle" id="unitBtn" onclick="toggleUnit()" style="flex:1;text-align:center;font-size:0.75rem;background:var(--surface2);color:var(--text);border:1px solid rgba(255,255,255,0.1)"></button>
+      </div>
       <button class="btn modal-btn" onclick="exportData()">⬇ &nbsp;Export data (.txt)</button>
       <button class="btn modal-btn" onclick="document.getElementById('importFile').click()">⬆ &nbsp;Import data</button>
       <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
       <button class="btn modal-btn danger" onclick="clearData()">🗑 &nbsp;Clear all data</button>
       <p class="modal-note">Export/import uses the <a href="https://github.com/QuantumPhysique/trale" target="_blank" rel="noopener">trale</a> backup format — one entry per line, e.g.<br>
       <code>2025-12-24T16:00 67.9</code><br>
-      Lines starting with <code>#</code> are ignored.<br>
-      Weights are stored here in lbs; export writes kg (trale's unit), and import offers kg→lbs conversion when the file looks like kg.</p>
+      Lines starting with <code>#</code> are ignored.</p>
     </div>
   </div>
 </div>
@@ -417,6 +420,8 @@ function saveSettings(){
       zoom={min:chart.scales.x.min,max:chart.scales.x.max};
     }
     localStorage.setItem(SETTINGS_KEY,JSON.stringify({
+      _kgMigrated:true,
+      displayUnit:displayUnit,
       measNoiseOverride:measNoiseOverride,
       procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
@@ -437,7 +442,30 @@ var procNoiseOverride=null; // in lbs/day
 var chart=null;
 var model=null;
 var selectedPoint=null; // date key of point being edited
-var DEFAULT_MEAS=0.5,DEFAULT_PROC=0.1;
+var DEFAULT_MEAS=0.23,DEFAULT_PROC=0.045;
+var LB_PER_KG=2.2046226218;
+var displayUnit='lb'; // 'lb' or 'kg'
+var displayUnitLabel='lbs';
+
+/* Convert internal kg values to the display unit */
+function kgToDisplay(kg){return displayUnit==='kg'?kg:kg*LB_PER_KG}
+/* Convert display-unit input to kg for internal storage */
+function displayToKg(v){return displayUnit==='kg'?v:v/LB_PER_KG}
+
+/* Silently migrate existing data from lbs (legacy) to kg. After
+   saving, all future storage is in kg regardless of display unit. */
+(function(){
+  var s=loadSettings();
+  if(s._kgMigrated)return;
+  // convert entries from lbs to kg
+  for(var i=0;i<entries.length;i++)entries[i].weight=+(entries[i].weight/LB_PER_KG).toFixed(3);
+  if(entries.length){saveData(entries)}
+  // convert noise overrides from lbs to kg
+  if(s.measNoiseOverride!=null)s.measNoiseOverride=+(s.measNoiseOverride/LB_PER_KG).toFixed(4);
+  if(s.procNoiseOverride!=null)s.procNoiseOverride=+(s.procNoiseOverride/LB_PER_KG).toFixed(4);
+  s._kgMigrated=true;
+  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s))}catch(e){}
+})();
 
 /* ═══════════════════════════════════════════════════════
    Kalman filter: constant-velocity model with configurable
@@ -566,7 +594,7 @@ function initChart(){
            ticks:{color:'#a0a0b8',font:{size:9},maxTicksLimit:8,
              callback:function(v){var d=new Date(v);return d.toLocaleDateString(void 0,{month:'short',day:'numeric'})}}
           },
-        y:{title:{display:true,text:'Weight',color:'#a0a0b8'},
+        y:{title:{display:false},
            grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#a0a0b8',font:{size:9},callback:function(v){return v.toFixed(1)}}}
       }
     }
@@ -620,6 +648,8 @@ function buildFitCurves(targetDateStr){
     }
     var s=Math.sqrt(Math.max(v,0));
     var x=t0+d*86400000;
+    // convert kg values to display unit
+    m=kgToDisplay(m);s=kgToDisplay(s)-kgToDisplay(0);
     mean.push({x:x,y:+m.toFixed(1)});
     low.push({x:x,y:+(m-s).toFixed(1)});
     high.push({x:x,y:+(m+s).toFixed(1)});
@@ -633,7 +663,7 @@ function updateChart(keepZoom){
   model=kalmanFilter(sorted);
 
   var raw=sorted.map(function(e){return{
-    x:parseDT(e.date).getTime(),y:e.weight,label:e.date
+    x:parseDT(e.date).getTime(),y:kgToDisplay(e.weight),label:e.date
   }});
   chart.data.datasets[0].data=raw;
 
@@ -645,7 +675,7 @@ function updateChart(keepZoom){
   });
   var predPt=chart.data.datasets[4].data[0];
   if(predPt){if(predPt.y<yMin)yMin=predPt.y;if(predPt.y>yMax)yMax=predPt.y}
-  if(!isFinite(yMin))yMin=160;if(!isFinite(yMax))yMax=170;
+  if(!isFinite(yMin))yMin=displayUnit==='kg'?72:160;if(!isFinite(yMax))yMax=displayUnit==='kg'?77:170;
   var pad=Math.max((yMax-yMin)*0.15,0.8);
   chart.scales.y.options.min=yMin-pad;
   chart.scales.y.options.max=yMax+pad;
@@ -811,6 +841,7 @@ function applyRange(minX,maxX){
     });
 
     widget.addEventListener('pointercancel',function(){dragMode=null});
+    widget.addEventListener('dblclick',function(){zoomAll()});
   }
 
   if(document.readyState==='loading')
@@ -885,12 +916,13 @@ function autoPredictData(keepZoom){
   }
   var targDs=new Date(target+'T12:00:00')
     .toLocaleDateString(void 0,{month:'short',day:'numeric'});
+  var predKg=result.predicted,predDisplay=kgToDisplay(predKg);
   document.getElementById('predResult').innerHTML=
-    '<span class="val">'+result.predicted.toFixed(1)+'</span>'+
-    '<span class="unit"> on '+targDs+' ('+result.daysDiff+'d)</span>';
+    '<span class="val">'+predDisplay.toFixed(1)+'</span>'+
+    '<span class="unit"> '+displayUnitLabel+' on '+targDs+' ('+result.daysDiff+'d)</span>';
 
   var predPoint={
-    x:new Date(target+'T12:00:00').getTime(),y:result.predicted,label:'Prediction: '+target
+    x:new Date(target+'T12:00:00').getTime(),y:predDisplay,label:'Prediction: '+target
   };
   chart.data.datasets[4].data=[predPoint];
   updateZoomLimits();
@@ -901,10 +933,10 @@ function autoPredictData(keepZoom){
   chart.data.datasets[2].data=curves.high;
   chart.data.datasets[3].data=curves.mean;
 
-  // Vertical line at target date
-  var ws=entries.map(function(e){return e.weight});
-  var loY=Math.min(Math.min.apply(null,ws),result.predicted)-10;
-  var hiY=Math.max(Math.max.apply(null,ws),result.predicted)+10;
+  // Vertical line at target date (in display units)
+  var ws=entries.map(function(e){return kgToDisplay(e.weight)});
+  var loY=Math.min(Math.min.apply(null,ws),predDisplay)-10;
+  var hiY=Math.max(Math.max.apply(null,ws),predDisplay)+10;
   chart.data.datasets[5].data=[
     {x:predPoint.x,y:loY},
     {x:predPoint.x,y:hiY}
@@ -956,7 +988,8 @@ function addWeight(){
   var date=document.getElementById('weightDate').value;
   var w=parseFloat(document.getElementById('weightValue').value);
   if(!date){toast('Pick a date & time');return}
-  if(isNaN(w)||w<=0||w>500){toast('Weight 1-500');return}
+  if(isNaN(w)||w<=0||w>(displayUnit==='kg'?230:500)){toast('Weight invalid');return}
+  w=displayToKg(w);
 
   var updated=upsertEntry(date,w);
   updateChart();
@@ -987,15 +1020,34 @@ function resetNoise(){
 /* ═══════════════════════════════════════════════════════
    Settings: export / import (trale format) / clear
    ═══════════════════════════════════════════════════════ */
+function syncUnitUI(){
+  // Update the input placeholder and step to match the display unit
+  var wEl=document.getElementById('weightValue');
+  wEl.placeholder=displayUnitLabel;
+  wEl.step=displayUnit==='kg'?'0.1':'0.1';
+  wEl.min=displayUnit==='kg'?'20':'40';
+  wEl.max=displayUnit==='kg'?'230':'500';
+  document.getElementById('unitBtn').textContent=displayUnitLabel;
+}
+
+function toggleUnit(){
+  displayUnit=displayUnit==='lb'?'kg':'lb';
+  displayUnitLabel=displayUnit==='kg'?'kg':'lbs';
+  syncUnitUI();
+  // Rebuild the chart display with the new unit
+  updateChart(true);
+  closeSettings();
+  saveSettings();
+}
+
 function openSettings(){document.getElementById('settingsModal').classList.add('show')}
 function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
 
-var LB_PER_KG=2.2046226218;
 function exportData(){
   if(entries.length===0){toast('No data to export');return}
-  var lines=['# This file was created with Weight Tracker (trale-compatible).','#Date weight[kg]'];
+  var lines=['# This file was created with Weight Tracker','#Date weight[kg]'];
   for(var i=0;i<entries.length;i++){
-    lines.push(entries[i].date+' '+(entries[i].weight/LB_PER_KG).toFixed(3));
+    lines.push(entries[i].date+' '+entries[i].weight.toFixed(3));
   }
   var blob=new Blob([lines.join('\n')+'\n'],{type:'text/plain'});
   var a=document.createElement('a');
@@ -1076,7 +1128,8 @@ function savePoint(){
   var nd=document.getElementById('editDate').value;
   var w=parseFloat(document.getElementById('editWeight').value);
   if(!nd){toast('Pick a date & time');return}
-  if(isNaN(w)||w<=0||w>500){toast('Weight 1-500');return}
+  if(isNaN(w)||w<=0||w>(displayUnit==='kg'?230:500)){toast('Weight invalid');return}
+  w=displayToKg(w);
   var old=selectedPoint;
   entries=entries.filter(function(e){return e.date!==old});
   upsertEntry(nd,w);
@@ -1235,6 +1288,12 @@ function init(){
   document.getElementById('weightDate').value=now.toISOString().slice(0,16);
 
   var settings=loadSettings();
+
+  // Display unit
+  if(settings.displayUnit==='kg'||settings.displayUnit==='lb')displayUnit=settings.displayUnit;
+  displayUnitLabel=displayUnit==='kg'?'kg':'lbs';
+  document.getElementById('unitBtn').textContent=displayUnitLabel;
+  syncUnitUI();
 
   // Prediction date: restore saved target, else default 30 days out
   if(settings.predDate&&/^\d{4}-\d{2}-\d{2}$/.test(settings.predDate)){
