@@ -92,12 +92,12 @@ header h1{
 
 /* ── Noise bar under header ── */
 #noiseBar,#settingsBar{
-  flex-shrink:0;padding:6px 12px;background:var(--surface2);
+  flex-shrink:0;padding:4px 10px;background:var(--surface2);
   border-bottom:1px solid rgba(255,255,255,0.06);
   width:100%;box-sizing:border-box;
 }
 .noise-row{
-  display:flex;gap:6px;align-items:center;padding:3px 0;
+  display:flex;gap:6px;align-items:center;padding:2px 0;
 }
 .noise-row>label{font-size:0.7rem;color:var(--text2);font-weight:600;width:auto;white-space:nowrap}
 .noise-row input[type=range]::-webkit-slider-runnable-track{background:rgba(255,255,255,0.12)!important}
@@ -120,6 +120,7 @@ header h1{
 }
 .zoom-btn:hover{background:rgba(255,255,255,0.08);color:var(--text)}
 .zoom-btn:active{background:rgba(255,255,255,0.15)}
+.zoom-btn.active{background:rgba(255,255,255,0.12);color:var(--accent)}
 .zoom-btn:focus,
 .zoom-btn:focus-visible,
 .zoom-btn:-moz-focusring{outline:none;background:transparent!important;color:var(--text2)!important;box-shadow:none}
@@ -289,7 +290,7 @@ input[type=range]::-moz-range-thumb{
       <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:5px 0 0 5px">lbs</button>
       <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:0 5px 5px 0">kg</button>
       </span>
-      <span class="version-tag" id="versionTag">v2.1.0</span>
+      <span class="version-tag" id="versionTag">v0.1.0</span>
       <span style="display:flex;gap:4px;margin-left:auto;flex:none">
       <button class="btn" onclick="exportData()" style="flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;font-size:0.65rem;background:var(--surface);color:var(--text2);border:1px solid rgba(255,255,255,0.1);border-radius:5px"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="4.5" y="8" width="7" height="5" rx=".8"/><path d="M10 4h-4"/></svg></button>
       <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;font-size:0.65rem;background:var(--surface);color:var(--text2);border:1px solid rgba(255,255,255,0.1);border-radius:5px"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V3M5 6l3-3 3 3"/><path d="M2 12h12"/><path d="M3 12v1.5M13 12v1.5"/></svg></button>
@@ -444,7 +445,7 @@ function loadSettings(){
 /* ═══════════════════════════════════════════════════════
    Version
    ═══════════════════════════════════════════════════════ */
-var APP_VERSION='v2.1.0';
+var APP_VERSION='v0.1.0';
 /* Bump version — call bumpVersion('2.1') to update. A guard
    in the HTML element so future bumps update the display. */
 function bumpVersion(v){APP_VERSION=v;var el=document.getElementById('versionTag');if(el)el.textContent='v'+APP_VERSION;saveSettings()}
@@ -795,6 +796,7 @@ function syncRangeWidget(){
   rEl.style.left=pctR+'%';
   fill.style.left=pctL+'%';
   fill.style.right=(100-pctR)+'%';
+  clearZoomHighlights();
 }
 
 /* Apply a [min,max] x-range from the widget to the chart */
@@ -920,6 +922,9 @@ function zoomPreset(days){
   chart.zoomScale('x',{min:cx-span/2,max:cx+span/2},'none');
   autoScaleY(chart);
   syncRangeWidget();
+  // highlight the clicked preset button
+  var sel=document.querySelector('.zoom-btn[onclick*="('+days+')"]');
+  if(sel)sel.classList.add('active');
   saveSettings();
 }
 
@@ -1509,8 +1514,6 @@ function init(){
     if(e.key==='Enter')savePoint();
   });
 
-  // Blur all header buttons after pointer-up so no sticky highlight
-  document.addEventListener('pointerup',function(e){var t=e.target.closest('button');if(t&&!t.closest('input,textarea,[contenteditable]'))t.blur()});
 }
 
 document.addEventListener('DOMContentLoaded',init);
