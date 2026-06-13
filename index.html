@@ -102,16 +102,11 @@ header h1{
 .ctrl-row{display:flex;gap:6px;align-items:center}
 .ctrl-row>label{flex-shrink:0;font-size:0.7rem;color:var(--text2);font-weight:600;width:16px;text-align:center}
 
-input[type=date],
-input[type=datetime-local]{
-  padding:8px 28px 8px 8px;background:var(--surface2);border:1px solid rgba(255,255,255,0.08);
-  border-radius:var(--radius-sm);color:var(--text);font-size:0.85rem;
-  font-family:inherit;-webkit-appearance:none;outline:none;min-width:0;
-}
+input[type=text],
 input[type=number]{
   padding:8px 8px;background:var(--surface2);border:1px solid rgba(255,255,255,0.08);
   border-radius:var(--radius-sm);color:var(--text);font-size:0.85rem;
-  font-family:inherit;-webkit-appearance:none;outline:none;min-width:0;
+  font-family:inherit;outline:none;min-width:0;
 }
 input:focus{border-color:var(--accent)}
 
@@ -224,10 +219,9 @@ input[type=range]::-webkit-slider-thumb{
   }
   .ctrl-row{flex-wrap:wrap;gap:3px}
   .ctrl-row>label{display:none}
-  .ctrl-row>input[type=date],.ctrl-row>input[type=datetime-local],
-  .ctrl-row>input[type=number],.ctrl-row>input[type=range],
+  .ctrl-row>input,.ctrl-row>input[type=range],
   .ctrl-row>.btn,.ctrl-row>.pred-display{flex:1 1 100%!important}
-  input[type=date],input[type=datetime-local],input[type=number]{padding:5px 4px;font-size:0.72rem}
+  input[type=text],input[type=number]{padding:5px 4px;font-size:0.72rem}
   .btn{padding:6px 10px;font-size:0.7rem}
   .btn-reset{padding:3px 6px;font-size:0.6rem}
   .phi-val{font-size:0.72rem;min-width:0;flex:1}
@@ -276,8 +270,8 @@ input[type=range]::-webkit-slider-thumb{
   <div id="normalControls" style="display:contents">
     <div class="ctrl-row">
       <label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="weightDate" style="flex:1">
-      <label title="Weight" style="width:auto">⚖</label>
+      <input type="text" id="weightDate" placeholder="2026-06-01T08:00" style="flex:1">
+
       <input type="number" id="weightValue" placeholder="lbs" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
       <button class="btn btn-add" onclick="addWeight()">+</button>
     </div>
@@ -296,7 +290,7 @@ input[type=range]::-webkit-slider-thumb{
 
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
-      <input type="date" id="predDate" onchange="onPredDateChange()" style="flex:1">
+      <input type="text" id="predDate" placeholder="2026-07-12" onchange="onPredDateChange()" style="flex:1">
       <span class="pred-display" id="predResult">—</span>
     </div>
   </div>
@@ -304,8 +298,8 @@ input[type=range]::-webkit-slider-thumb{
   <div id="editControls" style="display:none">
     <div class="ctrl-row">
       <label title="Date &amp; time"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="11" rx="1"/><path d="M1.5 7h13M4 1.5V4M12 1.5V4"/></svg></label>
-      <input type="datetime-local" id="editDate" style="flex:1">
-      <label title="Weight" style="width:auto">⚖</label>
+      <input type="text" id="editDate" placeholder="2026-06-01T08:00" style="flex:1">
+
       <input type="number" id="editWeight" step="0.1" min="20" max="500" inputmode="decimal" style="flex:1">
     </div>
     <div class="ctrl-row">
