@@ -432,6 +432,7 @@ function saveSettings(){
       procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
       sliderShow:document.getElementById('noiseBar').style.display!=='none',
+      settingsShow:document.getElementById('settingsBar').style.display!=='none',
       zoom:zoom
     }));
   }catch(e){}
@@ -1440,6 +1441,11 @@ function init(){
   if(settings.sliderShow){
     document.getElementById('noiseBar').style.display='';
     document.getElementById('sliderToggle').className='slider-toggle-btn active';
+  }
+  // Restore settings bar visibility
+  if(settings.settingsShow){
+    document.getElementById('settingsBar').style.display='';
+    document.getElementById('settingsToggle').className='gear-btn active';
   }
 
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
