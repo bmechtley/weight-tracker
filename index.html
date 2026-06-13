@@ -76,7 +76,7 @@ header h1{
 }
 .zoom-btn:hover{background:rgba(255,255,255,0.08);color:var(--text)}
 .zoom-btn:active{background:rgba(255,255,255,0.15)}
-.zoom-icon{font-size:1rem;padding:2px 6px;font-weight:400}
+.zoom-icon{padding:2px 6px;display:inline-flex;vertical-align:middle}
 .zoom-sep{width:1px;height:16px;background:rgba(255,255,255,0.1);margin:0 2px}
 
 /* ── Controls ── */
@@ -245,9 +245,9 @@ input[type=range]::-webkit-slider-thumb{
     <button class="zoom-btn" onclick="zoomPreset(183)" title="6 months">6m</button>
     <button class="zoom-btn" onclick="zoomPreset(365)" title="1 year">1y</button>
     <span class="zoom-sep"></span>
-    <button class="zoom-btn zoom-icon" onclick="chart.zoom(1.3)" title="Zoom in">+</button>
-    <button class="zoom-btn zoom-icon" onclick="chart.zoom(0.7)" title="Zoom out">−</button>
-    <button class="zoom-btn zoom-icon" onclick="zoomAll()" title="Show all data">⟷</button>
+    <button class="zoom-btn zoom-icon" onclick="chart.zoom(1.3)" title="Zoom in"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6.5 4v5M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+    <button class="zoom-btn zoom-icon" onclick="chart.zoom(0.7)" title="Zoom out"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+    <button class="zoom-btn zoom-icon" onclick="zoomAll()" title="Show all data"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 3v2M2 3h2M14 3h-2M14 3v2M2 13v-2M2 13h2M14 13h-2M14 13v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
   </div>
 </section>
 
