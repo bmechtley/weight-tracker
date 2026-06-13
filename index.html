@@ -82,6 +82,23 @@ header h1{
   z-index:11;pointer-events:auto;
 }
 
+
+
+/* ── Noise bar under header ── */
+#noiseBar{
+  flex-shrink:0;padding:6px 12px;background:var(--surface2);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.noise-row{
+  display:flex;gap:6px;align-items:center;padding:3px 0;
+}
+.noise-row>label{font-size:0.7rem;color:var(--text2);font-weight:600;width:auto;white-space:nowrap}
+.slider-toggle-btn{
+  background:transparent;border:none;color:var(--text2);font-size:0.9rem;
+  cursor:pointer;padding:2px 4px;font-family:inherit;line-height:1;
+}
+.slider-toggle-btn.active{color:var(--accent)}
+.slider-toggle-btn:active{opacity:0.7}
 /* ── Zoom toolbar ── */
 .zoom-btn{
   background:transparent;border:none;color:var(--text2);font-size:0.6rem;font-weight:700;
@@ -165,12 +182,7 @@ input[type=range]::-webkit-slider-thumb{
   cursor:pointer;padding:4px 6px;font-family:inherit;line-height:1;
 }
 .gear-btn:active{opacity:0.7}
-.gear-float{
-  display:none;position:fixed;top:8px;right:8px;z-index:50;
-  width:32px;height:32px;border-radius:50%;
-  background:rgba(26,26,46,0.75);border:1px solid rgba(255,255,255,0.12);
-  color:var(--text2);font-size:0.95rem;cursor:pointer;font-family:inherit;
-  align-items:center;justify-content:center;line-height:1;
+
 }
 .modal-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;
@@ -203,14 +215,6 @@ input[type=range]::-webkit-slider-thumb{
 
 
 
-/* ── Noise slider toggle ── */
-.btn-toggle-sliders{
-  background:transparent;border:1px solid rgba(255,255,255,0.08);color:var(--text2);
-  font-size:0.65rem;font-weight:700;font-family:inherit;padding:4px 12px;
-  border-radius:14px;cursor:pointer;flex:1;transition:background 0.1s,color 0.1s;
-}
-.btn-toggle-sliders:hover{background:rgba(255,255,255,0.06);color:var(--text)}
-.btn-toggle-sliders.active{background:rgba(79,195,247,0.12);color:var(--accent);border-color:rgba(79,195,247,0.3)}
 
 /* ── Toast ── */
 .toast{
@@ -229,7 +233,6 @@ input[type=range]::-webkit-slider-thumb{
     background:rgba(26,26,46,0.85);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
     padding:4px 8px;
   }
-  .gear-float{display:none}
   .chart-area{flex:1;margin:28px 2px 2px}
   .controls{
     width:130px;border-left:1px solid rgba(255,255,255,0.06);
@@ -255,7 +258,6 @@ input[type=range]::-webkit-slider-thumb{
     background:rgba(26,26,46,0.85);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
     padding:4px 8px;
   }
-  .gear-float{display:none}
   .chart-area{flex:1;margin:28px 4px 4px}
   .controls{
     width:280px;border-left:1px solid rgba(255,255,255,0.06);
@@ -276,8 +278,21 @@ input[type=range]::-webkit-slider-thumb{
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(1.3)" title="Zoom in"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6.5 4v5M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="chart.zoom(0.7)" title="Zoom out"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 6.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     <button class="zoom-btn zoom-icon" onclick="zoomAll()" title="Show all data"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 3v2M2 3h2M14 3h-2M14 3v2M2 13v-2M2 13h2M14 13h-2M14 13v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
-  </span><span style="display:flex;align-items:center;gap:4px"><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button><button class="gear-btn" onclick="openSettings()" title="Settings">⚙</button></span></header>
-<button class="gear-float" onclick="openSettings()" title="Settings">⚙</button>
+  </span><span style="display:flex;align-items:center;gap:4px"><button class="install-btn" id="installBtn" onclick="installPWA()">📲 Install</button><button class="slider-toggle-btn" id="sliderToggle" onclick="toggleSliders()" title="Kalman filter controls">⚙</button><button class="gear-btn" onclick="openSettings()" title="Settings">⋮</button></span></header>
+
+<div id="noiseBar" style="display:none">
+  <div class="noise-row">
+    <label title="Measurement noise">σ<sub>m</sub></label>
+    <input type="range" id="measSlider" min="2" max="230" step="1" value="23" oninput="onNoiseChange()" style="flex:1">
+    <span class="phi-val" id="measVal">0.23</span>
+  </div>
+  <div class="noise-row">
+    <label title="Process noise (per day)">σ<sub>p</sub></label>
+    <input type="range" id="procSlider" min="1" max="100" step="1" value="5" oninput="onNoiseChange()" style="flex:1">
+    <span class="phi-val" id="procVal">0.05</span>
+    <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
+  </div>
+</div>
 
 <section class="chart-area">
   <canvas id="weightChart"></canvas>
@@ -299,32 +314,19 @@ input[type=range]::-webkit-slider-thumb{
       <button class="btn btn-add" onclick="addWeight()">+</button>
     </div>
 
-  <div id="noiseControls" style="display:none">
-    <div class="ctrl-row">
-      <label title="Measurement noise">σ<sub>m</sub></label>
-      <input type="range" id="measSlider" min="2" max="230" step="1" value="23" oninput="onNoiseChange()" style="flex:1">
-      <span class="phi-val" id="measVal">0.23</span>
-    </div>
-    <div class="ctrl-row">
-      <label title="Process noise (per day)">σ<sub>p</sub></label>
-      <input type="range" id="procSlider" min="1" max="100" step="1" value="5" oninput="onNoiseChange()" style="flex:1">
-      <span class="phi-val" id="procVal">0.05</span>
-      <button class="btn-reset" id="resetBtn" onclick="resetNoise()" style="display:none">↺</button>
-    </div>
-  </div>
+
 
     <div class="ctrl-row">
       <label title="Predict date"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#e1bee7"/></svg></label>
-      <input type="date" id="predDate" onchange="onPredDateChange()" style="width:140px;flex:none">
-      <span class="pred-display" id="predResult" style="color:#e1bee7;width:90px;flex:none">—</span>
+      <input type="date" id="predDate" onchange="onPredDateChange()" style="width:33%;flex:none;min-width:100px">
+      <span class="pred-display" id="predResult" style="color:#e1bee7;width:auto;flex:1">—</span>
     </div>
     <div class="ctrl-row">
       <label title="Goal weight"><svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="5" fill="#66bb6a"/></svg></label>
-      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="width:140px;flex:none">
-      <span class="pred-display" id="goalResult" style="width:90px;flex:none">—</span>
+      <input type="number" id="goalWeight" onchange="onGoalChange()" placeholder="lbs" step="0.1" min="40" max="500" inputmode="decimal" style="width:33%;flex:none;min-width:100px">
+      <span class="pred-display" id="goalResult" style="width:auto;flex:1">—</span>
     </div>
     <div class="ctrl-row">
-      <button class="btn-toggle-sliders" id="sliderToggle" onclick="toggleSliders()" title="Show Kalman filter controls">⚙ ↑</button>
     </div>
     </div>
   </div>
@@ -451,7 +453,7 @@ function saveSettings(){
       measNoiseOverride:measNoiseOverride,
       procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
-      sliderShow:document.getElementById('noiseControls').style.display!=='none',
+      sliderShow:document.getElementById('noiseBar').style.display!=='none',
       zoom:zoom
     }));
   }catch(e){}
@@ -1034,12 +1036,11 @@ function autoPredictData(keepZoom){
    autoPredictData and from the goalWeight onchange. */
 
 function toggleSliders(){
-  var el=document.getElementById('noiseControls');
+  var el=document.getElementById('noiseBar');
   var btn=document.getElementById('sliderToggle');
   var show=el.style.display==='none';
   el.style.display=show?'':'none';
-  btn.className='btn-toggle-sliders'+(show?' active':'');
-  btn.innerHTML=show?'⚙ ↓':'⚙ ↑';
+  btn.className='slider-toggle-btn'+(show?' active':'');
   saveSettings();
 }
 
@@ -1444,8 +1445,8 @@ function init(){
 
   // Restore noise slider visibility
   if(settings.sliderShow){
-    document.getElementById('noiseControls').style.display='';
-    document.getElementById('sliderToggle').className='btn-toggle-sliders active';
+    document.getElementById('noiseBar').style.display='';
+    document.getElementById('sliderToggle').className='slider-toggle-btn active';
     document.getElementById('sliderToggle').innerHTML='⚙ ↓';
   }
 
