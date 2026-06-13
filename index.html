@@ -73,11 +73,11 @@ header h1{
 }
 .range-fill{
   position:absolute;top:6px;height:8px;
-  background:var(--accent);opacity:0.3;border-radius:1px;pointer-events:auto;
+  background:#43a3d3;border-radius:1px;pointer-events:auto;
 }
 .range-handle{
   position:absolute;top:6px;width:4px;height:8px;margin-left:-2px;
-  background:var(--accent);opacity:0.8;
+  background:#43a3d3;
   touch-action:none;cursor:col-resize;
   z-index:11;pointer-events:auto;
 }
@@ -772,10 +772,10 @@ function applyRange(minX,maxX){
                 ratio>=xToRatio(xs.min)&&ratio<=xToRatio(xs.max))){
         dragMode='pan';
       }else{
-        // click on empty track → center span at click point
-        var span=xs.max-xs.min;
-        var cx=ratioToX(ratio);
-        applyRange(cx-span/2,cx+span/2);
+        // click on empty track → extend the nearer edge to the click
+        var midX=xToRatio((xs.min+xs.max)/2);
+        if(ratio<midX)applyRange(ratioToX(ratio),xs.max);
+        else applyRange(xs.min,ratioToX(ratio));
         syncRangeWidget();
         return;
       }
