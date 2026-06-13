@@ -576,7 +576,7 @@ function initChart(){
       },
       scales:{
         x:{type:'linear',
-           title:{display:true,text:'Date',color:'#a0a0b8'},
+           title:{display:false},
            grid:{color:'rgba(255,255,255,0.04)'},
            ticks:{color:'#a0a0b8',font:{size:9},maxTicksLimit:8,
              callback:function(v){var d=new Date(v);return d.toLocaleDateString(void 0,{month:'short',day:'numeric'})}}
