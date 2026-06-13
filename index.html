@@ -286,15 +286,12 @@ input[type=range]::-moz-range-thumb{
 </div>
 <div id="settingsBar" style="display:none">
     <div class="noise-row">
-      <label style="font-size:0.72rem;color:var(--text2);font-weight:600;width:auto">Unit</label>
-      <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:6px 0 0 6px">lbs</button>
-      <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:1;text-align:center;font-size:0.75rem;padding:6px 8px;border-radius:0 6px 6px 0">kg</button>
-    </div>
-    <div class="noise-row">
-      <button class="btn" onclick="exportData()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:700">⬇ Export</button>
-      <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:700">⬆ Import</button>
+      <button class="btn unit-btn" id="unitLbsBtn" onclick="setUnit('lb')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:5px 0 0 5px">lbs</button>
+      <button class="btn unit-btn" id="unitKgBtn" onclick="setUnit('kg')" style="flex:none;font-size:0.72rem;padding:3px 8px;border-radius:0 5px 5px 0">kg</button>
+      <button class="btn" onclick="exportData()" style="flex:1;text-align:center;padding:4px 6px;font-size:0.65rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:5px;font-weight:700">⬇ Export</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()" style="flex:1;text-align:center;padding:4px 6px;font-size:0.65rem;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,0.1);border-radius:5px;font-weight:700">⬆ Import</button>
       <input type="file" id="importFile" accept=".txt,.csv,text/plain" style="display:none" onchange="importData(this)">
-      <button class="btn" onclick="clearData()" style="flex:1;text-align:center;padding:6px;font-size:0.75rem;background:var(--surface);color:var(--danger);border:1px solid rgba(239,83,80,0.4);border-radius:6px;font-weight:700">🗑 Clear</button>
+      <button class="btn" onclick="clearData()" style="flex:none;text-align:center;padding:4px 8px;font-size:0.65rem;background:var(--surface);color:var(--danger);border:1px solid rgba(239,83,80,0.4);border-radius:5px;font-weight:700">🗑</button>
     </div>
   </div>
 <section class="chart-area">
