@@ -94,8 +94,10 @@ header h1{
   display:flex;gap:6px;align-items:center;padding:3px 0;
 }
 .noise-row>label{font-size:0.7rem;color:var(--text2);font-weight:600;width:auto;white-space:nowrap}
-.noise-row input[type=range]{background:rgba(255,255,255,0.12)!important}
+.noise-row input[type=range]::-webkit-slider-runnable-track{background:rgba(255,255,255,0.12)!important}
+.noise-row input[type=range]::-moz-range-track{background:rgba(255,255,255,0.12)!important}
 .noise-row input[type=range]::-webkit-slider-thumb{background:var(--accent)!important;border:2px solid var(--surface2)!important;box-shadow:0 0 8px rgba(79,195,247,0.5)!important}
+.noise-row input[type=range]::-moz-range-thumb{background:var(--accent)!important;border:2px solid var(--surface2)!important}
 .slider-toggle-btn{
   background:transparent;border:none;color:var(--text2);font-size:0.9rem;
   cursor:pointer;padding:2px 4px;font-family:inherit;line-height:1;
@@ -150,13 +152,25 @@ input[type=number]{text-align:center}
 
 /* ── Slider ── */
 input[type=range]{
-  -webkit-appearance:none;flex:1;height:6px;min-width:0;width:0;
-  background:var(--surface2);border-radius:3px;outline:none;
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  flex:1;height:26px;min-width:0;width:0;
+  background:transparent;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:6px;border-radius:3px;background:var(--surface2);border:none;
+}
+input[type=range]::-moz-range-track{
+  height:6px;border-radius:3px;background:var(--surface2);border:none;
 }
 input[type=range]::-webkit-slider-thumb{
   -webkit-appearance:none;width:26px;height:26px;border-radius:50%;
-  background:var(--accent);cursor:pointer;border:2px solid var(--bg);
-  box-shadow:0 0 8px rgba(79,195,247,0.5);
+  background:var(--accent);border:2px solid var(--bg);
+  margin-top:-10px;box-shadow:0 0 8px rgba(79,195,247,0.5);
+}
+input[type=range]::-moz-range-thumb{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg);
+  cursor:pointer;
 }
 
 .phi-val{
@@ -1444,7 +1458,6 @@ function init(){
   if(settings.sliderShow){
     document.getElementById('noiseBar').style.display='';
     document.getElementById('sliderToggle').className='slider-toggle-btn active';
-    document.getElementById('sliderToggle').innerHTML='⚙ ↓';
   }
 
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
