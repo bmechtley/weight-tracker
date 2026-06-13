@@ -109,9 +109,16 @@ input[type=number]{
   border-radius:var(--radius-sm);color:var(--text);font-size:0.85rem;
   font-family:inherit;-webkit-appearance:none;outline:none;min-width:0;
 }
-/* hide the browser's built-in calendar picker icon */
+/* hide all browser internal picker overlays that obscure the date value */
 input[type=datetime-local]::-webkit-calendar-picker-indicator,
-input[type=date]::-webkit-calendar-picker-indicator{display:none}
+input[type=date]::-webkit-calendar-picker-indicator{display:none!important}
+input[type=datetime-local]::-webkit-datetime-edit{display:block}
+/* on some browsers the picker is a clearbutton or an internal "reveal" widget */
+input[type=datetime-local]::-webkit-clear-button,
+input[type=date]::-webkit-clear-button,
+input[type=datetime-local]::-webkit-inner-spin-button{display:none}
+/* for Firefox/others that use a moz-pseudo */
+input[type=datetime-local]{-moz-appearance:textfield;appearance:textfield}
 input:focus{border-color:var(--accent)}
 
 input[type=number]{text-align:center}
