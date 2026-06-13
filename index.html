@@ -587,6 +587,30 @@ function updateChart(keepZoom){
     x:parseDT(e.date).getTime(),y:e.weight,label:e.date
   }});
   chart.data.datasets[0].data=raw;
+
+  // Compute tight Y range from weight data before setting the band,
+  // so Chart.js never auto-scales Y to the enormous band extents.
+  // Include the prior prediction point if it exists.
+  var xMin=chart.scales.x.min,xMax=chart.scales.x.max;
+  var yMin=Infinity,yMax=-Infinity;
+  raw.forEach(function(pt){
+    if(pt.x>=xMin&&pt.x<=xMax){if(pt.y<yMin)yMin=pt.y;if(pt.y>yMax)yMax=pt.y}
+  });
+  var predPt=chart.data.datasets[4].data[0];
+  if(predPt&&predPt.x>=xMin&&predPt.x<=xMax){
+    if(predPt.y<yMin)yMin=predPt.y;if(predPt.y>yMax)yMax=predPt.y;
+  }
+  // Fallback: use full data range if nothing in view
+  if(!isFinite(yMin)||!isFinite(yMax)){
+    for(var r=0;r<raw.length;r++){
+      if(!isFinite(yMin)||raw[r].y<yMin)yMin=raw[r].y;
+      if(!isFinite(yMax)||raw[r].y>yMax)yMax=raw[r].y;
+    }
+  }
+  var pad=Math.max((yMax-yMin)*0.15,0.8);
+  chart.scales.y.options.min=yMin-pad;
+  chart.scales.y.options.max=yMax+pad;
+
   var curves=buildFitCurves(null);
   chart.data.datasets[1].data=curves.low;
   chart.data.datasets[2].data=curves.high;
@@ -594,10 +618,8 @@ function updateChart(keepZoom){
   chart.data.datasets[4].data=[];
   chart.data.datasets[5].data=[];
 
-  // auto-predict after chart update
   if(!keepZoom)chart.resetZoom();
   chart.update();
-  autoScaleY(chart);
   updateModelStats();
   autoPredict(keepZoom);
 }
