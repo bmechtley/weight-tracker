@@ -1,4 +1,4 @@
-const CACHE = 'weight-tracker-v3';
+const CACHE = 'weight-tracker-v4';
 const ASSETS = [
   '/',
   '/index.html',
