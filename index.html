@@ -62,38 +62,27 @@ header h1{
 }
 .chart-area canvas{width:100%!important;height:100%!important}
 
-/* ── Pan slider under the x-axis ── */
+/* ── Range selector (dual-handle x-axis slider) ── */
 .panic-wrapper{
-  position:absolute;bottom:2px;left:8px;right:8px;z-index:10;
-  pointer-events:none;
+  position:absolute;bottom:3px;left:6px;right:6px;height:20px;z-index:10;
+  touch-action:none;cursor:pointer;
 }
-#panSlider{
-  -webkit-appearance:none;appearance:none;
-  width:100%;height:14px;
-  background:transparent;
-  cursor:pointer;pointer-events:auto;
-  outline:none;margin:0;padding:0;
-  border:none;border-radius:0;
+.range-track{
+  position:absolute;left:0;right:0;top:8px;height:4px;
+  background:rgba(255,255,255,0.08);border-radius:2px;
 }
-#panSlider::-webkit-slider-runnable-track{
-  height:3px;background:rgba(255,255,255,0.1);border-radius:2px;
+.range-fill{
+  position:absolute;top:8px;height:4px;
+  background:rgba(79,195,247,0.35);border-radius:2px;
 }
-#panSlider::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:14px;height:14px;border-radius:50%;
-  background:var(--accent);border:2px solid var(--bg);
-  margin-top:-5.5px;box-shadow:0 0 4px rgba(0,0,0,0.4);
-  cursor:pointer;transition:transform 0.1s;
+.range-handle{
+  position:absolute;top:3px;width:14px;height:14px;margin-left:-7px;
+  border-radius:50%;background:var(--accent);border:2px solid var(--bg);
+  box-shadow:0 0 4px rgba(0,0,0,0.4);touch-action:none;cursor:ew-resize;
+  z-index:11;
 }
-#panSlider::-webkit-slider-thumb:active{transform:scale(1.2)}
-#panSlider::-moz-range-track{
-  height:3px;background:rgba(255,255,255,0.1);border-radius:2px;border:none;
-}
-#panSlider::-moz-range-thumb{
-  width:14px;height:14px;border-radius:50%;
-  background:var(--accent);border:2px solid var(--bg);
-  cursor:pointer;
-}
+.range-handle:active{transform:scale(1.2)}
+.range-handle.hidden{display:none}
 
 /* ── Zoom toolbar ── */
 .zoom-toolbar{
@@ -271,8 +260,11 @@ input[type=range]::-webkit-slider-thumb{
 
 <section class="chart-area">
   <canvas id="weightChart"></canvas>
-  <div class="panic-wrapper">
-    <input type="range" id="panSlider" min="0" max="1000" step="1" value="500" oninput="onPanSliderInput(this)">
+  <div class="panic-wrapper" id="rangeWidget">
+    <div class="range-track"></div>
+    <div class="range-fill" id="rangeFill"></div>
+    <div class="range-handle" id="rangeHandleL"></div>
+    <div class="range-handle" id="rangeHandleR"></div>
   </div>
   <div class="zoom-toolbar">
     <button class="zoom-btn" onclick="zoomPreset(7)" title="1 week">1w</button>
@@ -565,11 +557,11 @@ function initChart(){
         zoom:{
           zoom:{
             wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoomComplete:function(ctx){autoScaleY(ctx.chart);syncPanSlider();saveSettings()}
+            onZoomComplete:function(ctx){autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
           },
           pan:{
             enabled:true,mode:'x',
-            onPanComplete:function(ctx){autoScaleY(ctx.chart);syncPanSlider();saveSettings()}
+            onPanComplete:function(ctx){autoScaleY(ctx.chart);syncRangeWidget();saveSettings()}
           },
           limits:{x:{minRange:86400000*2}}
         }
@@ -677,7 +669,7 @@ function updateChart(keepZoom){
   updateModelStats();
   autoPredictData(keepZoom);
   chart.update('none');
-  syncPanSlider();
+  syncRangeWidget();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -709,40 +701,124 @@ function updateNoiseUI(){
 
 /* Update the pan slider thumb to reflect the current X view window.
    Also called on init and after zoom/pan. */
-function syncPanSlider(){
-  var el=document.getElementById('panSlider');
-  var xs=chart&&chart.scales&&chart.scales.x;
-  if(!xs||entries.length<2){el.style.opacity='0';return}
-  el.style.opacity='1';
-  var lo=parseDT(entries[0].date).getTime();
+/* ── Dual-handle range widget helpers ── */
+function rangeDataBounds(){
+  if(entries.length<2)return{lo:0,hi:1e12};
+  var lo=parseDT(entries[0].date).getTime()-86400000;
   var hi=parseDT(entries[entries.length-1].date).getTime();
   var pred=chart.data.datasets[4].data[0];
   if(pred)hi=Math.max(hi,pred.x);
-  var span=hi-lo;
-  if(span<86400000)return;
-  var mid=(xs.min+xs.max)/2;
-  el.value=Math.round(((mid-lo)/span)*1000);
+  hi+=86400000*3;
+  return{lo:lo,hi:Math.max(hi,lo+86400000)};
 }
 
-/* User dragged the pan slider → center the current view at the
-   proportional position. */
-function onPanSliderInput(el){
-  var xs=chart.scales.x;
-  if(!xs)return;
-  var viewSpan=xs.max-xs.min;
-  var lo=parseDT(entries[0].date).getTime();
-  var hi=parseDT(entries[entries.length-1].date).getTime();
-  var pred=chart.data.datasets[4].data[0];
-  if(pred)hi=Math.max(hi,pred.x);
-  var span=hi-lo;
-  var ratio=parseInt(el.value,10)/1000;
-  var target=lo+ratio*span;
-  var min=target-viewSpan/2;
-  var max=target+viewSpan/2;
-  chart.zoomScale('x',{min:min,max:max},'none');
+function ratioToX(r){var b=rangeDataBounds();return b.lo+r*(b.hi-b.lo)}
+function xToRatio(x){var b=rangeDataBounds();return(x-b.lo)/(b.hi-b.lo)}
+
+/* Sync the widget from the chart's current x-axis range */
+function syncRangeWidget(){
+  var w=document.getElementById('rangeWidget');
+  var xs=chart&&chart.scales&&chart.scales.x;
+  if(!xs||entries.length<2){w.style.opacity='0';return}
+  w.style.opacity='1';
+  var rMin=xToRatio(xs.min),rMax=xToRatio(xs.max);
+  var lEl=document.getElementById('rangeHandleL');
+  var rEl=document.getElementById('rangeHandleR');
+  var fill=document.getElementById('rangeFill');
+  var pctL=Math.max(0,Math.min(1,rMin))*100;
+  var pctR=Math.max(0,Math.min(1,rMax))*100;
+  lEl.style.left=pctL+'%';
+  rEl.style.left=pctR+'%';
+  fill.style.left=pctL+'%';
+  fill.style.right=(100-pctR)+'%';
+}
+
+/* Apply a [min,max] x-range from the widget to the chart */
+function applyRange(minX,maxX){
+  var b=rangeDataBounds();
+  if(maxX-minX<86400000)return; // too narrow
+  minX=Math.max(b.lo,minX);maxX=Math.min(b.hi,maxX);
+  if(maxX<=minX)return;
+  chart.zoomScale('x',{min:minX,max:maxX},'none');
   autoScaleY(chart);
   saveSettings();
 }
+
+/* Pointer event handling for the range widget */
+(function(){
+  var widget=null,lh=null,rh=null,fill=null;
+  var dragMode=null; // 'left','right','pan'
+  var dragStartX=0,dragStartMin=0,dragStartMax=0;
+
+  function initWidget(){
+    widget=document.getElementById('rangeWidget');
+    if(!widget)return;
+    lh=document.getElementById('rangeHandleL');
+    rh=document.getElementById('rangeHandleR');
+    fill=document.getElementById('rangeFill');
+
+    widget.addEventListener('pointerdown',function(e){
+      if(entries.length<2)return;
+      var xs=chart.scales.x;
+      if(!xs)return;
+      // Determine what was hit
+      var rect=widget.getBoundingClientRect();
+      var px=e.clientX-rect.left;
+      var ratio=px/rect.width;
+
+      if(e.target===lh||e.target===rh){
+        dragMode=e.target===lh?'left':'right';
+      }else if(e.target===fill||
+               (e.target.classList.contains('range-track')&&
+                ratio>=xToRatio(xs.min)&&ratio<=xToRatio(xs.max))){
+        dragMode='pan';
+      }else{
+        // click on empty track → center span at click point
+        var span=xs.max-xs.min;
+        var cx=ratioToX(ratio);
+        applyRange(cx-span/2,cx+span/2);
+        syncRangeWidget();
+        return;
+      }
+      dragStartX=px;
+      dragStartMin=xs.min;
+      dragStartMax=xs.max;
+      widget.setPointerCapture(e.pointerId);
+    });
+
+    widget.addEventListener('pointermove',function(e){
+      if(!dragMode||!widget.hasPointerCapture(e.pointerId))return;
+      var rect=widget.getBoundingClientRect();
+      var dx=e.clientX-rect.left-dragStartX;
+      var b=rangeDataBounds();
+      var dr=dx/rect.width*(b.hi-b.lo);
+      var min=dragStartMin;
+      var max=dragStartMax;
+      if(dragMode==='left'){
+        min=Math.min(dragStartMax-86400000,Math.max(b.lo,dragStartMin+dr));
+      }else if(dragMode==='right'){
+        max=Math.max(dragStartMin+86400000,Math.min(b.hi,dragStartMax+dr));
+      }else{ // pan
+        min=dragStartMin+dr;
+        max=dragStartMax+dr;
+      }
+      applyRange(min,max);
+      syncRangeWidget();
+    });
+
+    widget.addEventListener('pointerup',function(e){
+      if(!dragMode)return;
+      dragMode=null;
+      widget.releasePointerCapture(e.pointerId);
+    });
+
+    widget.addEventListener('pointercancel',function(){dragMode=null});
+  }
+
+  if(document.readyState==='loading')
+    document.addEventListener('DOMContentLoaded',initWidget);
+  else initWidget();
+})();
 
 /* Pan/zoom limits: never beyond the data (plus the prediction point) */
 function updateZoomLimits(){
@@ -766,7 +842,7 @@ function zoomPreset(days){
   var cx=Math.max(last-span/2,mid);
   chart.zoomScale('x',{min:cx-span/2,max:cx+span/2},'none');
   autoScaleY(chart);
-  syncPanSlider();
+  syncRangeWidget();
   saveSettings();
 }
 
@@ -776,7 +852,7 @@ function zoomAll(){
   chart.resetZoom();
   chart.update('none');
   autoScaleY(chart);
-  syncPanSlider();
+  syncRangeWidget();
   saveSettings();
 }
 
@@ -861,7 +937,7 @@ function autoPredictData(keepZoom){
 function onPredDateChange(){
   autoPredictData(false);
   chart.update('none');
-  syncPanSlider();
+  syncRangeWidget();
   saveSettings();
 }
 
@@ -1191,7 +1267,7 @@ function init(){
     chart.update();updateModelStats();updateNoiseUI();autoPredictData(false);chart.update('none')
   }
 
-  syncPanSlider();
+  syncRangeWidget();
 
   // Restore last session's zoom window (clamped to current pan limits)
   if(entries.length>0&&settings.zoom&&
@@ -1207,7 +1283,7 @@ function init(){
   }
 
   // sync slider after zoom restore too
-  syncPanSlider();
+  syncRangeWidget();
 
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
