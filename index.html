@@ -432,6 +432,7 @@ function saveSettings(){
       measNoiseOverride:measNoiseOverride,
       procNoiseOverride:procNoiseOverride,
       predDate:document.getElementById('predDate').value||null,
+      goalWeight:document.getElementById('goalWeight').value||null,
       sliderShow:document.getElementById('noiseBar').style.display!=='none',
       settingsShow:document.getElementById('settingsBar').style.display!=='none',
       zoom:zoom
@@ -1458,6 +1459,11 @@ function init(){
   if(settings.settingsShow){
     document.getElementById('settingsBar').style.display='';
     document.getElementById('settingsToggle').className='gear-btn active';
+  }
+
+  // Restore goal weight
+  if(settings.goalWeight&&isFinite(parseFloat(settings.goalWeight))){
+    document.getElementById('goalWeight').value=settings.goalWeight;
   }
 
   // Generate PNG icons and dynamic manifest (Chrome requires PNG)
